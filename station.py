@@ -1,7 +1,9 @@
 
 import socket
 import system
-hostfile_path  = "C:\Users\as22cq\Downloads\Project2\project\hosts.txt"
+
+
+hostfile_path  = "./project/hosts.txt"
 arp_cache = {}
 
 class Bridge:
@@ -9,6 +11,7 @@ class Bridge:
         self.name = name
         self.ip_address = ip_address
         self.port = port
+
 
 def parse_bridge_file(file_path):
     bridges = []
@@ -25,6 +28,8 @@ def parse_bridge_file(file_path):
                 bridge = Bridge(name, ip_address, port)
                 bridges.append(bridge)
     return bridges
+
+
 class Interface:
     def __init__(self, name, ip_address, subnet_mask, mac_address, lan_name):
         self.name = name
@@ -32,6 +37,8 @@ class Interface:
         self.subnet_mask = subnet_mask
         self.mac_address = mac_address
         self.lan_name = lan_name
+
+
 def parse_interface_file(file_path):
     interfaces = []
     with open(file_path, 'r') as file:
@@ -189,6 +196,8 @@ def arp_resolution(ip_address):
         return None
     # TODO: Implement the logic to perform ARP resolution
     # Return the MAC address corresponding to the given IP address
+
+    pass
     
 
 
