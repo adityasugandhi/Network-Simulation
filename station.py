@@ -1,273 +1,269 @@
+
 import socket
-import time
-from ipaddress import IPv4Address
-import netifaces
+import system
+hostfile_path  = "C:\Users\as22cq\Downloads\Project2\project\hosts.txt"
+arp_cache = {}
 
-# Get MAC address of a specific network interface (e.g., 'eth0')
-station_mac = netifaces.ifaddresses('eth0')[netifaces.AF_LINK][0]['addr']
-print(f"Station's MAC address: {station_mac}")
+class Bridge:
+    def __init__(self, name, ip_address, port):
+        self.name = name
+        self.ip_address = ip_address
+        self.port = port
 
-next_hop_ipaddr = '192.168.1.1'  # Example IP address for the next hop
-dst_ipaddr = '192.168.1.10'     # Example IP address for the final destination
+def parse_bridge_file(file_path):
+    bridges = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split each line into tokens
+            tokens = line.strip().split()
 
-# Constants for packet types
-TYPE_IP_PKT = 1
-TYPE_ARP_PKT = 0
+            # Check if the line has at least three tokens (name, IP, port)
+            if len(tokens) >= 3:
+                name = tokens[0]
+                ip_address = tokens[1]
+                port = int(tokens[2])  # Assuming the port is an integer
+                bridge = Bridge(name, ip_address, port)
+                bridges.append(bridge)
+    return bridges
+class Interface:
+    def __init__(self, name, ip_address, subnet_mask, mac_address, lan_name):
+        self.name = name
+        self.ip_address = ip_address
+        self.subnet_mask = subnet_mask
+        self.mac_address = mac_address
+        self.lan_name = lan_name
+def parse_interface_file(file_path):
+    interfaces = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split each line into tokens
+            tokens = line.strip().split()
 
-# Structure for ARP packet
-class ARP_PKT:
-    def __init__(self, op, srcip, srcmac, dstip, dstmac):
-        self.op = op
-        self.srcip = srcip
-        self.srcmac = srcmac
-        self.dstip = dstip
-        self.dstmac = dstmac
+            # Check if the line has at least five tokens (name, IP, subnet mask, MAC, LAN)
+            if len(tokens) >= 5:
+                name = tokens[0]
+                ip_address = tokens[1]
+                subnet_mask = tokens[2]
+                mac_address = tokens[3]
+                lan_name = tokens[4]
+                interface = Interface(name, ip_address, subnet_mask, mac_address, lan_name)
+                interfaces.append(interface)
+    
+    return interfaces
+# Initializing TCP Connections to all the bridges in bridge file.
 
-# Structure for IP packet
-class IP_PKT:
-    def __init__(self, dstip, srcip, protocol, sequenceno, length, data):
-        self.dstip = dstip
-        self.srcip = srcip
-        self.protocol = protocol
-        self.sequenceno = sequenceno
-        self.length = length
-        self.data = data
+def receive_frame(interface):
+    # Assume 'receive_ethernet_frame' is a function to receive Ethernet frames
+    ethernet_frame = receive_ethernet_frame(interface)
 
-# ARP cache as a list
-arp_cache = []
+    # Parse the Ethernet frame to extract the IP packet
+    ip_packet = extract_ip_packet(ethernet_frame)
 
-# Structure for pending packets
-class PendingPacket:
-    def __init__(self, next_hop_ipaddr, dst_ipaddr, pending_pkt):
-        self.next_hop_ipaddr = next_hop_ipaddr
-        self.dst_ipaddr = dst_ipaddr
-        self.pending_pkt = pending_pkt
+    # Check if the IP packet is destined for this station
+    if ip_packet.destination_ip == interface.ip_address:
+        # Display the message and sender's name
+        print(f"Received message from {ip_packet.source_name}: {ip_packet.message}")
 
-pending_queue = []
-def construct_arp_request(arp_pkt, next_hop_router_ip):
-    arp_request = ARP_PKT(
-        op=0,  # ARP request
-        srcip=arp_pkt.srcip,
-        srcmac=station_mac,  # Replace with the station's MAC address
-        dstip=next_hop_router_ip,
-        dstmac="FF:FF:FF:FF:FF:FF"  # Broadcasting ARP request to router MAC
-    )
-    return arp_request
+def handle_arp_packet(arp_packet, arp_cache):
+    if arp_packet['type'] == 'request':
+        # Respond with this station's MAC address
+        send_arp_reply(arp_packet['sender_ip'], this_station_mac)
+    elif arp_packet['type'] == 'reply':
+        # Update the ARP cache with the sender's information
+        update_arp_cache(arp_cache, arp_packet['sender_ip'], arp_packet['sender_mac'])
 
-def send_arp_request_to_router(arp_request):
-    # Send the constructed ARP request to the router
-    # Construct the Ethernet frame
-    ether_frame = construct_ether_frame(arp_request)
+def consult_forwarding_table(destination_ip):
+    # TODO: Implement the logic to consult the forwarding table
+    # Return the next hop IP address based on the destination IP
+      # Assume a simple forwarding table mapping destination IPs to next hop IPs
+    forwarding_table = {
+        '128.252.11.0': '128.252.11.1',
+        '128.252.13.32': '128.252.13.33',
+        '0.0.0.0': '128.252.13.38'
+        # Add more entries as needed
+    }
 
-    # Use socket or appropriate method to send the Ethernet frame to the router
-    send_ether_frame_to_router(ether_frame)
-def send_ether_frame_to_router(ether_frame):
-    try:
-        # Create a raw socket to send the Ethernet frame
-        with socket.socket(socket.AF_PACKET, socket.SOCK_RAW) as s:
-            s.bind(('eth0', 0))  # Replace 'eth0' with the relevant network interface
-            s.send(ether_frame)
-            print("ARP request sent to the router")
-    except socket.error as e:
-        print(f"Error sending ARP request to the router: {e}")
-def get_next_hop_router_ip(destination_ip):
-    if destination_ip not in local_subnet:
-        return predefined_router_ip  # Replace with the actual router IP
-    return None  # No router needed for local subnet
-def construct_ether_frame(arp_response):
-    # Construct an Ethernet frame for the ARP response
-    # Construct the frame with destination MAC, source MAC, and EtherType for ARP (0x0806)
-    dst_mac = arp_response.dstmac
-    src_mac = station_mac  # Replace with the station's MAC address
-    ethertype = 0x0806  # ARP EtherType
-    ether_header = dst_mac + src_mac + ethertype.to_bytes(2, byteorder='big')
-    arp_pkt_data = construct_arp_packet(arp_response)
+    return forwarding_table.get(destination_ip, None)
 
-    return ether_header + arp_pkt_data
-def construct_arp_packet(arp_response):
-    op_code = arp_response.op  # ARP operation (0 for request, 1 for response)
-    src_ip = arp_response.srcip
-    src_mac = arp_response.srcmac
-    dst_ip = arp_response.dstip
-    dst_mac = arp_response.dstmac
 
-    # Constructing the ARP response packet
-    arp_op = op_code.to_bytes(2, byteorder='big')  # Convert op code to 2 bytes
-    src_ip_bytes = src_ip.to_bytes(4, byteorder='big')  # Source IP as 4 bytes
-    src_mac_bytes = b''.join(bytes([int(x, 16)]) for x in src_mac.split(':'))  # Source MAC in bytes
-    dst_ip_bytes = dst_ip.to_bytes(4, byteorder='big')  # Destination IP as 4 bytes
-    dst_mac_bytes = b''.join(bytes([int(x, 16)]) for x in dst_mac.split(':'))  # Destination MAC in bytes
-
-    # Construct the ARP packet by concatenating all necessary fields
-    arp_packet = arp_op + src_mac_bytes + src_ip_bytes + dst_mac_bytes + dst_ip_bytes
-
+def create_arp_packet(packet_type, sender_ip, target_ip, sender_mac):
+    # Assuming a simple ARP packet structure
+    arp_packet = {
+        'type': packet_type,
+        'sender_ip': sender_ip,
+        'target_ip': target_ip,
+        'sender_mac': sender_mac
+        # Add more fields as needed
+    }
     return arp_packet
 
-def send_arp_response(arp_response):
-    # Construct the Ethernet frame with the ARP response packet
-    ether_pkt = construct_ether_frame(arp_response)
+def create_ip_packet(destination_ip, source_ip, message):
+    # Simple IP packet structure with source and destination IPs and a message
+    ip_packet = {
+        'source_ip': source_ip,
+        'destination_ip': destination_ip,
+        'message': message
+    }
+    return ip_packet
 
-    # Send the Ethernet frame over a raw socket
-    try:
-        # Replace 'eth0' with the relevant network interface
-        with socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(3)) as s:
-            s.bind(('eth0', socket.htons(3)))  # Bind to the interface for sending ARP (htons(3) for ARP)
-            s.send(ether_pkt)  # Send the constructed ARP response
-            print(f"ARP response sent to {arp_response.dstip}")
-    except socket.error as e:
-        print(f"Error sending ARP response: {e}")
+def send_packet_to_mac_layer(next_hop_mac, ip_packet):
+    # Assume a simple structure for the Ethernet frame
+    ethernet_frame = {
+        'source_mac': this_station_mac,
+        'destination_mac': next_hop_mac,
+        'payload': ip_packet
+    }
+    # TODO: Implement the logic to send the Ethernet frame
+    # In a real-world scenario, this would involve sending the frame over the network using appropriate networking libraries or APIs
+    print(f"Sending Ethernet frame to {next_hop_mac}: {ethernet_frame}")
+    return ethernet_frame
 
-def forward_arp_request(arp_pkt):
-    next_hop_router_ip = get_next_hop_router_ip(arp_pkt.dstip)
-    if next_hop_router_ip:
-        arp_request = construct_arp_request(arp_pkt, next_hop_router_ip)
-        send_arp_request_to_router(arp_request)
+def receive_ethernet_frame(interface):
+    # TODO: Implement the logic to receive an Ethernet frame from the interface
+    # In a real-world scenario, this would involve listening for incoming frames on the specified interface
+    # For simulation purposes, you can use a placeholder value
+    received_frame = {'source_mac': '00:00:00:00:00:01', 'destination_mac': '00:00:00:00:00:02', 'payload': 'Hello from Ethernet frame'}
+    print(f"Received Ethernet frame: {received_frame}")
+    return received_frame
+
+def extract_ip_packet(ethernet_frame):
+    # Simple extraction assuming the IP packet is directly in the payload
+    return ethernet_frame['payload']
+
+def send_arp_reply(requester_ip, this_station_mac):
+    # Create an ARP reply packet
+    arp_reply = create_arp_packet('reply', this_station_ip, requester_ip, this_station_mac)
+    # TODO: Send the ARP reply packet
+    # In a real-world scenario, this would involve sending the ARP reply over the network
+    print(f"Sending ARP reply to {requester_ip}: {arp_reply}")
+    return arp_reply
+
+def update_arp_cache(arp_cache, ip_address, mac_address):
+    # Update the ARP cache with the received information
+    arp_cache[ip_address] = mac_address
+    print(f"Updated ARP cache: {arp_cache}")
+
+def send_message(hosts, destination_name, message):
+    # Look up the destination IP address based on the destination name
+    destination_ip = next((host.ip_address for host in hosts if host.name == destination_name), None)
+
+    if destination_ip:
+        # Consult the forwarding table to determine the next hop (assuming you have a forwarding table)
+        next_hop_ip = consult_forwarding_table(destination_ip)
+
+        # Perform ARP resolution to get the MAC address of the next hop
+        next_hop_mac = arp_resolution(next_hop_ip)
+
+        # Create an IP packet and pass it to the MAC layer for sending
+        ip_packet = create_ip_packet(destination_ip, this_station_ip, message)
+        send_packet_to_mac_layer(next_hop_mac, ip_packet)
     else:
-        print("Next-hop router for forwarding ARP request not found.")
+        print(f"Destination {destination_name} not found in the host list.")
+def handle_station_tasks(interface, hosts):
+    # Example: Send a message
+    send_message(hosts, 'Acs2', 'Hello from Acs1!')
 
-def parse_hostname_file(hostname_file):
-    host_ip_map = {}
-    try:
-        with open(hostname_file, 'r') as file:
-            lines = file.readlines()
-            for line in lines:
-                parts = line.split()
-                if len(parts) == 2:
-                    host, ip = parts
-                    host_ip_map[host] = ip
-                else:
-                    print(f"Skipping line: {line}. Incorrect format.")
-    except FileNotFoundError:
-        print("Hostname file not found.")
-    return host_ip_map
+    # Example: Receive a message
+    receive_frame(interface)
 
-def parse_interface_file(interface_file):
-    interface_info = {}
-    try:
-        with open(interface_file, 'r') as file:
-            lines = file.readlines()
-            for line in lines:
-                parts = line.split()
-                if len(parts) == 5:
-                    interface, ip, subnet, mac, lan = parts
-                    interface_info[interface] = {
-                        'ip': ip,
-                        'subnet': subnet,
-                        'mac': mac,
-                        'lan': lan
-                    }
-                else:
-                    print(f"Skipping line: {line}. Incorrect format.")
-    except FileNotFoundError:
-        print("Interface file not found.")
-    return interface_info
+    # Example: Handle ARP request
+    handle_arp_packet('ARP REQUEST EXAMPLE')
 
-def establish_connections(interface_info):
-    socket_connections = {}
-    for interface, details in interface_info.items():
-        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        bridge_address = details['ip']  # Get the bridge IP from interface details
-        bridge_port = 12345  # Placeholder for the bridge port, use the actual port
 
-        try:
-            connection.connect((bridge_address, bridge_port))
-            connection.send(b'Station connecting')
+def arp_resolution(ip_address): 
+     if ip_address in arp_cache:
+        return arp_cache[ip_address]
 
-            response = connection.recv(1024).decode()
-            if response == "accept":
-                socket_connections[interface] = connection
-            else:
-                print(f"Connection to {bridge_address} rejected.")
-                connection.close()
-        except (socket.error, ConnectionRefusedError) as e:
-            print(f"Error connecting to {bridge_address}: {e}")
-            connection.close()
+    # If not in the cache, send an ARP request to get the MAC address
+    arp_request = create_arp_packet('request', this_station_ip, ip_address, this_station_mac)
+    send_packet_to_mac_layer('broadcast', arp_request)
 
-        time.sleep(2)  # Add a delay before attempting the next connection
-    return socket_connections
+    # Wait for the ARP reply
+    arp_reply = receive_ethernet_frame(interface)
+    if arp_reply:
+        # Update the ARP cache with the received information
+        update_arp_cache(arp_cache, arp_reply['source_ip'], arp_reply['source_mac'])
+        return arp_reply['source_mac']
+    else:
+        print(f"ARP resolution for {ip_address} failed.")
+        return None
+    # TODO: Implement the logic to perform ARP resolution
+    # Return the MAC address corresponding to the given IP address
+    
 
-def handle_arp_packet(received_packet):
-    arp_pkt = received_packet  # Rename for clarity
 
-    if arp_pkt.op == 0:  # ARP request
-        if arp_pkt.dstip == IPv4Address('127.0.0.1'):
-            # It's an ARP request for the station's own IP, prepare an ARP response
-            # Construct the ARP response packet
-            arp_response = ARP_PKT(
-                op=1,  # ARP response
-                srcip=IPv4Address('127.0.0.1'),
-                srcmac=station_mac,  # Replace with the station's MAC address
-                dstip=arp_pkt.srcip,
-                dstmac=arp_pkt.srcmac
-            )
-            # Send the ARP response packet
-            send_arp_response(arp_response)
+def parse_hostname_file(file_path):
+    hosts = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split each line into tokens
+            tokens = line.strip().split()
+
+            # Check if the line has at least two tokens (name and IP address)
+            if len(tokens) >= 2:
+                name = tokens[0]
+                ip_address = tokens[1]
+                host = Host(name, ip_address)
+                hosts.append(host)
+    return hosts
+def connect_to_lans(interfaces, bridges):
+    bridges = parse_bridge_file(bridge_file_path)
+    for interface in interfaces:
+        # Find the corresponding bridge information based on the LAN name
+        bridge_info = next((b for b in bridges if b.name == interface.lan_name), None)
+
+        if bridge_info:
+            # Use TCP socket to connect to the bridge
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.settimeout(5)  # Socket timeout 5 secs.
+                    s.connect((bridge_info.ip_address, bridge_info.port))
+                    response = s.recv(1024).decode('utf-8')
+                    if response == "accept":
+                        print(f"Connected to {interface.lan_name}")
+                        connected = True
+                         handle_station_tasks(interface, hosts)  # sends message to the destination and host
+                    else:
+                        print(f"Connection to {interface.lan_name} rejected")
+            except socket.error as e:
+                print(f"Error connecting to {interface.lan_name}: {e}")
+                retry_count +=1
+                time.sleep(retry_interval)
         else:
-            # It's an ARP request for a different IP, handle accordingly
-            if arp_pkt.dstip in local_subnet:  # Check if IP is in the local subnet
-    # ARP is for a different IP within the local subnet, send appropriate response
-                if arp_pkt.dstip in arp_cache:  # If MAC address for IP is already in ARP cache
-        # If the MAC address for the requested IP is known, prepare an ARP response
-                    mac_address = arp_cache[arp_pkt.dstip]
-                    arp_response = ARP_PKT(
-                        op=1,  # ARP response
-                        srcip=arp_pkt.dstip,
-                        srcmac=mac_address,  # Respond with known MAC address for the requested IP
-                        dstip=arp_pkt.srcip,
-                        dstmac=arp_pkt.srcmac
-                    )
-                    # Send the constructed ARP response
-                    send_arp_response(arp_response)
-                else:
-                    # If MAC address for the IP is not known, handle this scenario accordingly
-                    # For instance, forward the ARP request to a router
-                    forward_arp_request(arp_pkt)  # Forward the ARP request to the router
-    elif arp_pkt.op == 1:  # ARP response
-        # It's an ARP response, update the ARP cache
-        update_arp_cache(arp_pkt.srcip, arp_pkt.srcmac)
-        # Process pending packets, checking if they can be sent now
-        resend_pending_packets()
-    else:
-        # Unknown ARP packet type
-        print("Unknown ARP packet type.")
+            print(f"Bridge information not found for {interface.lan_name}")
 
-def update_arp_cache(ip, mac):
-    # Implement ARP cache update
-    arp_cache.append((ip, mac))
 
-def add_to_pending_queue(dest_ip, message):
-    # Add pending packets to the queue
-    pending_queue.append(PendingPacket(next_hop_ipaddr, dst_ipaddr, message))
+class RoutingTableEntry:
+    def __init__(self, dest_network, next_hop, subnet_mask, interface):
+        self.dest_network = dest_network
+        self.next_hop = next_hop
+        self.subnet_mask = subnet_mask
+        self.interface = interface
 
-def resend_pending_packets():
-    for packet in pending_queue:
-        for ip, mac in arp_cache:
-            if packet.next_hop_ipaddr == ip:
-                # Send the pending packet using the socket connection
-                # Replace this placeholder with your logic to send the packet
-                try:
-                    socket_connection = socket_connections[packet.dest_ip]
-                    socket_connection.send(packet.pending_pkt.encode())
-                    print(f"Resending pending packet to {packet.dest_ip}")
-                except (KeyError, socket.error) as e:
-                    print(f"Error sending packet to {packet.dest_ip}: {e}")
-                break  # Break once the packet is sent
+def parse_routingtable_file(file_path):
+    # Data Structure for storing routing_table_entries
+    routing_table_entries = []
+    with open(file_path, 'r') as file:
+        for line in file:
+            # Split each line into tokens
+            tokens = line.strip().split()
+
+            # Check if the line has at least four tokens (dest_network, next_hop, subnet_mask, interface)
+            if len(tokens) >= 4:
+                dest_network = tokens[0]
+                next_hop = tokens[1]
+                subnet_mask = tokens[2]
+                interface = tokens[3]
+                routing_entry = RoutingTableEntry(dest_network, next_hop, subnet_mask, interface)
+                routing_table_entries.append(routing_entry)
+    
+    return routing_table_entries
 
 
 
-# Main functionality
-if __name__ == "__main__":
-    hostname_file = "hostname.txt"
-    interface_file = "./project/ifaces/ifaces.a"
-
-    hostname_info = parse_hostname_file(hostname_file)
-    interface_info = parse_interface_file(interface_file)
-
-    socket_connections = establish_connections(interface_info)
-
+def main_loop():
     while True:
-        # Code to handle user input
-        # Code to process received messages
-        # Code for handling ARP requests and replies
-        # Code for managing pending packets
-        time.sleep(1)  # Placeholder for continuous operation
+        # Check for user input, incoming messages, and ARP requests
+        # Process each type of event accordingly
+        pass
+
