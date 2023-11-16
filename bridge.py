@@ -1,28 +1,36 @@
 import socket
 import select
 import time
-import os
+import random as r
+import argparse
+from utils.bridge_utils.bridge_init import increment_ip, parse_bridge_file, remove_line_from_file, process_data_frame, file_write
 
+parser = argparse.ArgumentParser(description="Bridge file that takes input of file name and creates sockets to listen to incoming connections")
+parser.add_argument("name",help="Enter Staton name")
+args = parser.parse_args()
+station_name = args.name
 MAX_CONNECTIONS = 10
-PORT = 5555
+PORT = r.randint(1000,6000)
 INACTIVE_TIMEOUT = 60  # Seconds for inactivity timeout
 
 mac_port_mapping = {}
 active_ports = []
 last_seen_times = {}
 
-bridge_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-bridge_socket.bind(('localhost', PORT))
-bridge_socket.listen(5)
-bridge_socket.setblocking(0)
 
-def process_data_frame(data):
-    source_mac = data[:6]
-    dest_mac = data[6:12]
-    frame = data[12:]
-    return source_mac, dest_mac, frame
-
-def main():
+def main(ip):
+    bridge_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    bridge_socket.bind((ip, PORT))
+    bridge_socket.listen(5)
+    print(bridge_socket.getsockname())
+    ip_addrr  = bridge_socket.getsockname()[0]
+    print(ip_addrr)
+    bridge_socket.setblocking(0)
+  
+    #print(f"Bridge Started Running on the: {socket.gethostbyname(socket.gethostname())}, {PORT}")
+    print(f"Bridge Started Running on the:{PORT},{ip_addrr}")
+    file_write(ip_addrr,PORT, station_name)
+    
     while True:
         try:
             read_sockets, _, _ = select.select([bridge_socket] + active_ports, [], [], 1)
@@ -82,18 +90,30 @@ def main():
             print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    
-
-    ip_address = socket.gethostbyname(socket.gethostname())
-    with open("ip_address_link", "w") as file:
-        file.write(ip_address)
-
-
-    with open("port_number_link", "w") as file:
-        file.write(str(PORT))
-
+   
     try:
-        main()
-    except KeyboardInterrupt:
-        bridge_socket.close()
-        print("Bridge closed")
+        bridges = parse_bridge_file()
+        bridge_names = [bridge.name for bridge in bridges]
+        bridge_addr = [bridge.ip_address for bridge in bridges]
+        print(bridge_addr)
+        last_ip = bridge_addr[-1]
+        print(last_ip)
+
+        new_ip = increment_ip(last_ip)
+        print(new_ip)
+   
+
+        if station_name not in bridge_names:
+            try:
+                main(new_ip)
+            except KeyboardInterrupt:
+                remove_line_from_file(station_name)
+                print("Bridge closed")
+        else:
+            print('Try another bridge name!')
+    except:
+        try:
+            main(ip='127.0.0.1')
+        except KeyboardInterrupt:
+            remove_line_from_file(station_name)
+            print("Bridge closed")

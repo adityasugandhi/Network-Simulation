@@ -121,3 +121,5 @@ def parse_interface_file(file_path: str) -> list[Interface]:
 def print_interfaces(interfaces: list[Interface])-> None:
     for interface in interfaces:
         print(f'Name: {interface.name}, IP Address: {interface.ip_address}, Network Mask: {interface.subnet_mask}, Ethernet Address: {interface.mac_address}, LAN: {interface.lan_name}')
+
+

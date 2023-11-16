@@ -1,6 +1,8 @@
 from utils.station_utils.network_init import parse_hostname_file, parse_routing_table_file, parse_interface_file,\
       print_forwarding_table, print_hosts, print_interfaces
 
+from utils.station_utils.lan_hooks import connect_to_all_lans
+
 
 def station(interface: str, routingtable: str, hostname: str)-> None:
     '''
@@ -11,12 +13,14 @@ def station(interface: str, routingtable: str, hostname: str)-> None:
     routing_tables = parse_routing_table_file(routingtable)
     hostnames = parse_hostname_file(hostname)
 
-    print(f'\nInterfaces from file {interface}:\n')
-    print_interfaces(interfaces)
-    print(f'\nRouting Tables from file {routingtable}:\n')
-    print_forwarding_table(routing_tables)
-    print(f'\nHosts from file {hostname}:\n')
-    print_hosts(hostnames)
+    # print(f'\nInterfaces from file {interface}:\n')
+    # print_interfaces(interfaces)
+    # print(f'\nRouting Tables from file {routingtable}:\n')
+    # print_forwarding_table(routing_tables)
+    # print(f'\nHosts from file {hostname}:\n')
+    # print_hosts(hostnames)
+
+    connect_to_all_lans(interfaces)
 
 
 if __name__ == '__main__':
