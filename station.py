@@ -4,27 +4,27 @@ import system
 hostfile_path  = "C:\Users\as22cq\Downloads\Project2\project\hosts.txt"
 arp_cache = {}
 
+
+
+#---------- Bridge class to store bridge ip_address, port & name---------
 class Bridge:
-    def __init__(self, name, ip_address, port):
+    def __init__(self,name,ip_address, port):
         self.name = name
         self.ip_address = ip_address
         self.port = port
+def bridge_read(filepath):
+    bridge_parts = []
+    with open(filepath,'r') as bf:
+        lines = bf.readlines()
+        print(lines)
+        for line in lines:
+            parts =  line.split(',')
+            bridge_parts.append(parts)
+            
+        return bridge_parts
 
-def parse_bridge_file(file_path):
-    bridges = []
-    with open(file_path, 'r') as file:
-        for line in file:
-            # Split each line into tokens
-            tokens = line.strip().split()
 
-            # Check if the line has at least three tokens (name, IP, port)
-            if len(tokens) >= 3:
-                name = tokens[0]
-                ip_address = tokens[1]
-                port = int(tokens[2])  # Assuming the port is an integer
-                bridge = Bridge(name, ip_address, port)
-                bridges.append(bridge)
-    return bridges
+#---------- Host class to store host name & ip_address---------
 class Interface:
     def __init__(self, name, ip_address, subnet_mask, mac_address, lan_name):
         self.name = name
@@ -262,6 +262,8 @@ def parse_routingtable_file(file_path):
 
 
 def main_loop():
+    
+    
     while True:
         # Check for user input, incoming messages, and ARP requests
         # Process each type of event accordingly
