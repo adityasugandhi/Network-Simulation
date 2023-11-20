@@ -60,6 +60,7 @@ def start_server():
             read_sockets, _, _ = select.select(inputs + active_ports, [], [], 1)
 
             for sock in read_sockets:
+                print(read_sockets)
                 if sock is bridge_socket:
                     conn, addr = bridge_socket.accept()
                     inputs.append(conn)  # Add the new connection to the list of inputs
@@ -72,19 +73,19 @@ def start_server():
                         active_ports.append(conn)
                         print(f"New station connected-{conn}")
                         conn.send("accept".encode())
-                        mac_address = conn.recv(1024).decode()
-                        bridge.update_mapping(mac_address, client_port)
-                        print(f"get map{bridge.getportmap()}")
-                    else:
-                        conn.send("reject".encode())
-                        conn.close()
-                else:
-                    data = sock.recv(1024)
+                        # mac_address = conn.recv(1024).decode()
+                        # bridge.update_mapping(mac_address, client_port)
+                        # print(f"get map{bridge.getportmap()}")
+                    # else:
+                    #     conn.send("reject".encode())
+                    #     conn.close()
+                # else:
+                #     data = sock.recv(1024)
 
-                    if data:
-                        if len(data) < 12:
-                            print("Incomplete frame received, discarding.")
-                            continue
+                #     if data:
+                #         if len(data) < 12:
+                #             print("Incomplete frame received, discarding.")
+                #             continue
 
             current_time = time.time()
             inactive_stations = [mac for mac, last_seen in last_seen_times.items() if current_time - last_seen > INACTIVE_TIMEOUT]

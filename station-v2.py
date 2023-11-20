@@ -1,7 +1,7 @@
 from utils.station_utils.network_init import parse_hostname_file, parse_routing_table_file, parse_interface_file,\
       print_forwarding_table, print_hosts, print_interfaces
 
-from utils.station_utils.lan_hooks import connect_to_all_lans
+from utils.station_utils import lan_hooks, input_monitoring 
 
 
 def station(interface: str, routingtable: str, hostname: str)-> None:
@@ -20,7 +20,9 @@ def station(interface: str, routingtable: str, hostname: str)-> None:
     # print(f'\nHosts from file {hostname}:\n')
     # print_hosts(hostnames)
 
-    connect_to_all_lans(interfaces)
+    connections = lan_hooks.connect_to_all_lans(interfaces)
+    input_monitoring.monitoring(connections)
+
 
 
 if __name__ == '__main__':

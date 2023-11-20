@@ -6,22 +6,24 @@ B = Bridgeparser()
 
 def connect_to_bridge(ip_address, port, macaddress):
     try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            print('------Connecting to server----')
-            s.connect((ip_address, port))
+        # with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('------Connecting to server----')
+        s.connect((ip_address, port))
+        # s.send(macaddress.encode())
+        print('-----Waiting for response-----')
+        response = s.recv(1024).decode()
+        if response == 'accept':
+            print('-----Connection accepted-----')
             s.send(macaddress.encode())
-            print('-----Waiting for response-----')
-            response = s.recv(1024).decode()
-            if response == 'accept':
-                print('-----Connection accepted-----')
-                s.send(macaddress.encode())
-            return response, s
+        return response, s
     except socket.error as e:
         print(f"Error connecting to {ip_address}:{port}: {e}")
         return "reject"
 
 
 def connect_to_all_lans(interfaces):
+    connections = []
     for interface in interfaces:
         port = None
         interface_dict = interface.to_dict()
@@ -32,8 +34,8 @@ def connect_to_all_lans(interfaces):
         for bridge in bridges:
 
             if bridge.name == interface_dict['Lan Name']:
-                print(bridge.name)
-                print(interface_dict['Lan Name'])
+                # print(bridge.name)
+                # print(interface_dict['Lan Name'])
                 port = bridge.port
             else:
                 print(f"Bridge {interface_dict['Lan Name']} not found")
@@ -43,9 +45,12 @@ def connect_to_all_lans(interfaces):
 
                 if response == "accept":
                     print(f"Connected to {bridge.name} bridge at {bridge.ip_address}:{bridge.port}")
+                    connections.append({'Socket': s, 'Bridge': bridge })
                     
                     # function with loop
                 else:
                     print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
+
+    return connections
 
 
