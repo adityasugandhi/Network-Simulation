@@ -24,8 +24,8 @@ class Lanhooks:
             print(f"Error connecting to {ip_address}:{port}: {e}")
             return "reject"
 
-    def connect_to_all_lans(self, interace_file):
-        interfaces = ifaceparser.parse_interface_file(interace_file)
+    def connect_to_all_lans(self, interface_file):
+        interfaces = ifaceparser.parse_interface_file(interface_file)
         connections = []
         for interface in interfaces:
             interface_dict = ifaceparser.interface_to_dict(interface)
