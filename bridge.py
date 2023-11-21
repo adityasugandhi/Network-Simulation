@@ -34,6 +34,7 @@ def handle_user_input():
 
 def handle_client(client_socket):
     data = client_socket.recv(1024)
+    print(f"Received data: {data}")
     client_socket.send(b"Received your data.")
     client_socket.close()
 
@@ -96,6 +97,7 @@ def start_server():
             for mac in inactive_stations:
                 del mac_port_mapping[mac]
                 del last_seen_times[mac]
+            time.sleep(10)
 
         except socket.error as e:
             print(f"Socket error: {e}")

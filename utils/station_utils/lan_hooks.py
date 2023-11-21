@@ -26,6 +26,7 @@ class Lanhooks:
 
     def connect_to_all_lans(self, interface_file):
         interfaces = ifaceparser.parse_interface_file(interface_file)
+        print()
         connections = []
         for interface in interfaces:
             interface_dict = ifaceparser.interface_to_dict(interface)
@@ -61,5 +62,7 @@ class Lanhooks:
                         print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
 
         return connections
+
+
 
 
