@@ -6,6 +6,7 @@ def monitoring(connections: list)-> None:
 
     should_listen = True
     active_sockets = [info['Socket'] for info in connections]
+    # interface_names = [info]
     prompt_displayed = False
 
     while should_listen:
@@ -13,6 +14,7 @@ def monitoring(connections: list)-> None:
             read_sockets, _, _ = select.select(active_sockets + [sys.stdin], [], [], .1)
             # Print the default message prompt
             if not prompt_displayed:
+                sys.stdout.write("Enter message in format mac address: message. If no mac address, will send to all\n")
                 sys.stdout.write(">> ")
                 sys.stdout.flush()  # Flush to ensure the message is immediately displayed
                 prompt_displayed = True
@@ -20,8 +22,9 @@ def monitoring(connections: list)-> None:
             for sock in read_sockets:
                 user_input = ''
                 if sock == sys.stdin:
-                    # print('IN')
+        
                    user_input = sys.stdin.readline().strip()
+                   iface_name = user_input.split(':')[0]
                    prompt_displayed = False
                    if user_input:
                         for bridge in active_sockets:

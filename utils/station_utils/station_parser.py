@@ -20,9 +20,9 @@ class Interfaceparser(Stationparser):
     def __init__(self):
          super().__init__()
          self.last_interface_instance = None  
-    def parse_interface_file(self):
+    def parse_interface_file(self, interface_file):
         interfaces = []
-        with open(self.interface_file, 'r') as file:
+        with open(interface_file, 'r') as file:
             for line in file:
                 # Split each line into tokens
                 tokens = line.strip().split()
@@ -50,6 +50,15 @@ class Interfaceparser(Stationparser):
             }
         else:
             return {}
+    
+    def interface_to_dict(self, iface):
+        return {
+            'Name': iface.name,
+            'IP Address': iface.ip_address,
+            'Subnet Mask': iface.subnet_mask,
+            'Mac Address': iface.mac_address,
+            'Lan Name': iface.lan_name
+        }
     
 class Routingtable(Stationparser):
     def __init__(self,dest_network,next_hop_ip,network_mask,network_interface) -> None:

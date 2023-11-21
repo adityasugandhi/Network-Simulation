@@ -62,7 +62,7 @@ def start_server():
 
             for sock in read_sockets:
                 #print(read_sockets)
-                print ('Bridge is running.')
+                # print ('Bridge is running.')
                 if sock is bridge_socket:
                     conn, addr = bridge_socket.accept()
 
