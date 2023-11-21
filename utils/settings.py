@@ -1,3 +1,10 @@
+import os
+
+interface_file = os.path.abspath('./project/ifaces/ifaces.a')
+routingtable_file = os.path.abspath('./project/rtables/rtable.a')
+host_file = os.path.abspath('./project/hosts')
+    
+
 
 class ActiveBridges:
     def __init__(self, manager) -> None:

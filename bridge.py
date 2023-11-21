@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser(description="Bridge file that takes input of fi
 parser.add_argument("name", help="Enter Station name")
 args = parser.parse_args()
 station_name = args.name
+#station_name = 'cs1'
 ip = '127.0.0.1'
 B = Bridgeparser()
 mac_port_mapping = {}
@@ -57,15 +58,18 @@ def start_server():
 
     while not exit_signal.is_set():
         try:
-            read_sockets, _, _ = select.select(inputs + active_ports, [], [], 1)
+            read_sockets, _, _ = select.select(inputs, [], [], 1)  # Set a timeout
 
             for sock in read_sockets:
-                print(read_sockets)
+                #print(read_sockets)
+                print ('Bridge is running.')
                 if sock is bridge_socket:
                     conn, addr = bridge_socket.accept()
+
                     inputs.append(conn)  # Add the new connection to the list of inputs
                     client_address, client_port = addr
                     print(f"New connection from {client_address}:{client_port}")
+                    active_ports.append(client_port)
                     bridge.update_mapping(client_address, client_port)
                     print(bridge.getportmap())
 
@@ -95,12 +99,17 @@ def start_server():
 
         except socket.error as e:
             print(f"Socket error: {e}")
+            read_sockets, _, _ = select.select(inputs + active_ports, [], [], 1)
+            print(read_sockets)
+            B.remove_line_from_file(station_name)
+            bridge_socket.close()
 
         except select.error as e:
             print(f"Select error: {e}")
 
-        except KeyError as e:
-            print(f"Key error: {e}")
+        except KeyboardInterrupt:
+            print("Ctrl+C detected. Exiting...")
+            exit_signal.set()
 
         except Exception as e:
             print(f"An error occurred: {e}")
