@@ -44,9 +44,9 @@ def monitoring(connections: list, interface_file: str)-> None:
         
                     user_input = sys.stdin.readline().strip()
                     entered_mac = user_input[:17]
+                    prompt_displayed = False
                     if check_valid_mac_format(entered_mac):
                         if not check_mac_on_same_station(entered_mac, interfaces):
-                            prompt_displayed = False
                             if user_input:
                                     for bridge in active_sockets:
                                         bridge.send(user_input.encode())
