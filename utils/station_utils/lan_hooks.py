@@ -10,7 +10,7 @@ class Lanhooks:
     @staticmethod
     def connect_to_bridge(ip_address, port, macaddress):
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
                 print('------Connecting to server----')
                 s.connect((ip_address, port))
                 #s.send(macaddress.encode())
@@ -24,31 +24,37 @@ class Lanhooks:
             print(f"Error connecting to {ip_address}:{port}: {e}")
             return "reject"
 
-    def connect_to_all_lans(self):
-        interfaces = ifaceparser.parse_interface_file()
+    def connect_to_all_lans(self, interace_file):
+        interfaces = ifaceparser.parse_interface_file(interace_file)
         connections = []
         for interface in interfaces:
-            port = None
-            interface_dict = ifaceparser.to_dict()
+            interface_dict = ifaceparser.interface_to_dict(interface)
+            # print(interface_dict)
             #print(interface_dict)
 
             bridges = B.parse_bridge_file()
 
+        
             for bridge in bridges:
-
+                # print(bridge.name)
+                # print(interface_dict['Lan Name'])
+                port = None
                 if bridge.name == interface_dict['Lan Name']:
                     # print(bridge.name)
                     # print(interface_dict['Lan Name'])
                     port = bridge.port
+                    print(port)
                 else:
                     print(f"Bridge {interface_dict['Lan Name']} not found")
+
+    
                 if port:
                     # Connect to the bridge
                     response,s = self.connect_to_bridge(bridge.ip_address,port, interface_dict['Mac Address'])
 
                     if response == "accept":
                         print(f"Connected to {bridge.name} bridge at {bridge.ip_address}:{bridge.port}")
-                        connections.append({'Socket': s, 'Bridge': bridge })
+                        connections.append({'Socket': s, 'Bridge': bridge, 'Interface': interface_dict })
                         
                         # function with loop
                     else:
