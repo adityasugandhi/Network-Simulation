@@ -1,5 +1,5 @@
 import ipaddress
-
+import socket
 BRIDGE_FILE_PATH = 'utils/station_utils/bridge.txt'
 
 
@@ -10,12 +10,23 @@ class Bridge:
         self.ip_address = ip_address
         self.port = port
         self.port_mapping = {}
+        self.macaddress = {}
+        self.bridge_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.last_seen_times = {}
+        self.active_ports = []
     def update_mapping(self, source_address, in_port):
         # Update the port mapping with the learned port for the source address
         self.port_mapping[source_address] = in_port
+    def update_macaddress(self,macaddress,name):
+        self.macaddress[macaddress] = name
     def getportmap(self):
      return self.port_mapping
+    
+    
+    
+    
+    
+    
 
 
 # def parse_bridge_file():
