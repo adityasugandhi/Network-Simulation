@@ -2,6 +2,7 @@
 from utils.station_utils.station_parser import  Stationparser,Interfaces
 from utils.station_utils.lan_hooks import Lanhooks
 from utils.station_utils import input_monitoring
+import threading
 
 lhooks = Lanhooks()
 def station(interface_file: str)-> None:
@@ -23,8 +24,11 @@ def station(interface_file: str)-> None:
 
     #lhooks.connect_to_bridge('127.0.0.1',,'test')
     connections = lhooks.connect_to_all_lans(interface_file)
+
     
-    input_monitoring.monitoring(connections)
+    #thread = threading.Thread(target=input_monitoring.monitoring, args=(connections))
+   # thread.start()
+    
 
 
 

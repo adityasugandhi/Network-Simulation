@@ -1,11 +1,7 @@
-
-import socket
 import select
-import time
 import threading
 import random as r
 import argparse
-import concurrent.futures
 from utils.bridge_utils.bridge_init import Bridge
 from utils.bridge_utils.bridge_parser import Bridgeparser
 
@@ -30,57 +26,18 @@ def send_to_all(bridge_socket,bridge,client_address,user_input):
         if client_port != client_address:
             bridge_socket.sendto(user_input.encode(), (ip, client_port))
             print(f"Sending data to station on port {client_port}: {user_input}")
+  
 
-    
-
-def handle_user_input():
+def handle_user_input(bridge):
     global exit_signal
     while not exit_signal.is_set():
         user_input = input("Enter your command: ")
         if user_input.lower() == "exit":
             exit_signal.set()
-    
-
-
-def handle_client(client_socket, client_port):
-    print('start sending data')
-    while True:
-        print('In the loop')
-        data = client_socket.recv(1024).decode("utf-8") # This is a blocking call
-        if not data:
-            print(f"Client on port {client_port} disconnected. Waiting for data...")
-            continue
-        print(f"Received data from station on port {client_port}: {data}")
-
-# Rest of the code remains unchanged
-          
-
-def handle_station_data(client_socket):
-    
-    while not exit_signal.is_set():
-        try:
-            # Check if there is data available to be read
-            readable, _, _ = select.select([client_socket], [], [], 1.0)  # 1.0 second timeout
-            if client_socket in readable:
-                data = client_socket.recv(1024)
-                if not data:
-                    # Connection closed by the client
-                    print(f"Connection closed by {client_socket.getpeername()}")
-                    break
-                else:
-                    # Process the received data
-                    print(f"Received data from {client_socket.getpeername()}: {data.decode()}")
-            else:
-                # No data available, do something else or continue waiting
-                pass
-        except BlockingIOError:
-            # Handle the case where there is no data to read
-            pass
-        except Exception as e:
-            print(f"Error receiving data: {e}")
-            
-            # Handle other exceptions if necessary
             break
+        if user_input == 'getports':
+            print(bridge.getportmap())
+        
 def start_server():
     global exit_signal
     bridge = Bridge(station_name, ip, PORT)
@@ -100,24 +57,37 @@ def start_server():
 
     
     while not exit_signal.is_set():
-        readable, _, _ = select.select([bridge.bridge_socket], [], [], 1.0)  # 1.0 second timeout
+        try:
+            readable, _, _ = select.select([bridge.bridge_socket], [], [], 100)  # 1.0 second timeout
+        except BlockingIOError:
+            continue
 
         if bridge.bridge_socket in readable:
             client_socket, client_address = bridge.bridge_socket.accept()
-            client_socket.send('accept'.encode())
-            bridge.update_mapping(client_socket,client_address[1])
-            print(f"Accepted connection from {client_address}")
-            bridge.active_ports.append(client_socket)
+            if len(bridge.port_mapping) < MAX_CONNECTIONS:
+                client_socket.send('accept'.encode())
+                print(client_address[1])
+                bridge.update_mapping(client_socket,client_address[1])
+                print(f"Accepted connection from {client_address}")
+                bridge.active_ports.append(client_socket)
+            else:
+                client_socket.send('reject'.encode())
+                client_socket.send('Port are full'.encode())
+                print(f"Rejected connection from {client_address} as ports are full")
 
             # Start a new thread to handle messages from this client
-            threading.Thread(target=handle_station_data, args=(client_socket,)).start()
-    
-    else:
-        print('Exit signal received. Shutting down...')
-        bridge.bridge_socket.close()
-        B.remove_line_from_file(station_name)
-        print('Removed line from file')
-        print('Exiting...')
+            threading.Thread(target=bridge.handle_station_data, args=(client_socket,)).start()
+            # Start the check connection status on a different thread 
+            threading.Thread(target=bridge.check_connection_status).start()
+            # Start  handle_user_input on a different thread for bridge
+            #threading.Thread(target=handle_user_input, args=(bridge,)).start()
+        else:
+            print('Exit signal received. Shutting down...')
+            bridge.exit_signal.set()
+            B.remove_line_from_file(station_name)
+            print('Removed line from file')
+            bridge.bridge_socket.close()
+            print('Exiting...')
    
 
 
@@ -129,13 +99,13 @@ if __name__ == "__main__":
         print(bridge_addr)
 
         if station_name not in bridge_names:
-            user_input_thread = threading.Thread(target=handle_user_input)
-            user_input_thread.start()
+            #user_input_thread = threading.Thread(target=handle_user_input)
+            #user_input_thread.start()
 
             main_thread = threading.Thread(target=start_server)
             main_thread.start()
 
-            user_input_thread.join()
+            #user_input_thread.join()
             main_thread.join()
         else:
             print('Try another bridge name!')
