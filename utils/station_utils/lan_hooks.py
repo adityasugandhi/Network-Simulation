@@ -3,12 +3,16 @@ import socket
 from utils.bridge_utils.bridge_parser import Bridgeparser
 from utils.station_utils.station_parser import Interfaces,Interfaceparser
 import threading
+from utils.station_utils.arp_handling import ARPTable
+import time
+
 B = Bridgeparser()
 
 ifaceparser = Interfaceparser()
 class Lanhooks:
     def __init__(self) -> None:
         self.bridges = []
+        self.arp_tables = {}
     
     def send_user_input_to_bridge(self, socket):
        while True:
@@ -24,7 +28,7 @@ class Lanhooks:
                 print(f"Error sending data: {e}")
                 break
 
-    def connect_to_bridge(self,ip_address, port, macaddress):
+    def connect_to_bridge(self,ip_address, port, interface):
         try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
                 print('------Connecting to server----')
@@ -37,6 +41,17 @@ class Lanhooks:
                     #s.send(macaddress.encode())
                     print('-----Sending MAC address-----')
                     print(type(s))
+
+                    # Add ARP entry to the ARP table for the LAN
+                    if interface['Lan Name'] not in self.arp_tables:
+                        self.arp_tables[interface['Lan Name']] = ARPTable()
+
+                        # arp_table = self.arp_tables[interface_dict['Lan Name']]
+                        # arp_table.add_arp_entry(interface_dict['IP Address'], interface_dict['Mac Address'])
+                        self.arp_tables[interface['Lan Name']].add_arp_entry(interface['IP Address'], interface['Mac Address'])
+
+                    # Start a thread for handling ARP requests
+                    threading.Thread(target=self.arp_handler, args=(interface['Lan Name'],)).start()
                     threading.Thread(target=self.send_user_input_to_bridge,args=(s,)).start()
                    
                 return response, s
@@ -72,13 +87,12 @@ class Lanhooks:
     
                 if port:
                     # Connect to the bridge
-                    response,s = self.connect_to_bridge(bridge.ip_address,port, interface_dict['Mac Address'])
+                    response,s = self.connect_to_bridge(bridge.ip_address,port, interface_dict)
 
                     if response == "accept":
                         print(f"Connected to {bridge.name} bridge at {bridge.ip_address}:{bridge.port}")
                         connections.append({'Socket': s, 'Bridge': bridge, 'Interface': interface_dict })
                         
-                        # function with loop
                     else:
                         print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
 
@@ -88,6 +102,17 @@ class Lanhooks:
         connections.send(message.encode())
     # BEGIN: be15d9bcejpp
     # END: be15d9bcejpp
+
+    def arp_handler(self,lan_name):
+        arp_table = self.arp_tables[lan_name]
+        while True:
+            # Simulate ARP handling (replace this with actual ARP handling logic)
+            print(f"Handling ARP requests for LAN: {lan_name}")
+            print("ARP Table:")
+            for entry in arp_table.arp_entries:
+                print(f"IP: {entry.ip_address}, MAC: {entry.mac_address}")
+            # Sleep for a while before handling the next ARP request
+            time.sleep(5)
 
 # Create an instance of Lanhooks
     
