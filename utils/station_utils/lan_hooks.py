@@ -5,6 +5,7 @@ from utils.station_utils.station_parser import Interfaces,Interfaceparser
 import threading
 from utils.station_utils.arp_handling import ARPTable
 import time
+import json
 
 B = Bridgeparser()
 
@@ -15,18 +16,41 @@ class Lanhooks:
         self.arp_tables = {}
     
     def send_user_input_to_bridge(self, socket):
-       while True:
-            user_input = input("Enter your message (type 'exit' to quit): ")
+        while True:
+            user_input = input("Enter your message and host to send message to in format host: message (type 'exit' to quit): ")
+            host = user_input.split(':')[0]
+
+            data_to_send = {
+                'Source Name': 'Station',
+                'Source IP': None,
+                'Source MAC': None,
+                'Dest Host': host,
+                'Dest IP': None,
+                'Dest MAC': None,
+                'Message': user_input[len(host):]
+            }
+
+            for entry in self.arp_tables:
+                self.arp_tables[entry].remove_stale_entries()
+
+            if host in self.arp_tables:
+                data_to_send['Dest IP'] = self.arp_tables[host].ip_address
+                data_to_send['Dest MAC'] = self.arp_tables[host].mac_address
+
+            json_data = json.dumps(data_to_send)
+                
+
             if user_input.lower() == "exit":
                 break
 
             try:
-                socket.send(user_input.encode("utf-8"))
+                socket.send(json_data.encode("utf-8"))
                 print("Message sent.")
 
             except socket.error as e:
                 print(f"Error sending data: {e}")
                 break
+        socket.close()
 
     def connect_to_bridge(self,ip_address, port, interface):
         try:
@@ -43,15 +67,15 @@ class Lanhooks:
                     print(type(s))
 
                     # Add ARP entry to the ARP table for the LAN
-                    if interface['Lan Name'] not in self.arp_tables:
-                        self.arp_tables[interface['Lan Name']] = ARPTable()
+                    if interface['Lan Name'].lower() not in self.arp_tables:
+                        self.arp_tables[interface['Lan Name'].lower()] = ARPTable()
 
                         # arp_table = self.arp_tables[interface_dict['Lan Name']]
                         # arp_table.add_arp_entry(interface_dict['IP Address'], interface_dict['Mac Address'])
-                        self.arp_tables[interface['Lan Name']].add_arp_entry(interface['IP Address'], interface['Mac Address'])
+                        self.arp_tables[interface['Lan Name'].lower()].add_arp_entry(interface['IP Address'], interface['Mac Address'])
 
                     # Start a thread for handling ARP requests
-                    threading.Thread(target=self.arp_handler, args=(interface['Lan Name'],)).start()
+                    # threading.Thread(target=self.arp_handler, args=(interface['Lan Name'],)).start()
                     threading.Thread(target=self.send_user_input_to_bridge,args=(s,)).start()
                    
                 return response, s
@@ -62,7 +86,6 @@ class Lanhooks:
 
     def connect_to_all_lans(self, interface_file):
         interfaces = ifaceparser.parse_interface_file(interface_file)
-        print()
         connections = []
         for interface in interfaces:
             interface_dict = ifaceparser.interface_to_dict(interface)
@@ -114,7 +137,6 @@ class Lanhooks:
             # Sleep for a while before handling the next ARP request
             time.sleep(5)
 
-# Create an instance of Lanhooks
     
     
     
