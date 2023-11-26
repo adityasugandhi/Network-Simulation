@@ -1,9 +1,12 @@
+
 import threading
 import socket
 import select
+import asyncio
 import time
-BRIDGE_FILE_PATH = 'utils/station_utils/bridge.txt'
+import json
 
+BRIDGE_FILE_PATH = 'utils/station_utils/bridge.txt'
 
 
 class Bridge:
@@ -16,70 +19,93 @@ class Bridge:
         self.last_seen_times = {}
         self.active_ports = []
         self.exit_signal = threading.Event()
-    def update_mapping(self, source_address, in_port):
-        self.port_mapping[source_address] = {
+        self.lock = threading.Lock()
+        self.check_connection_status_running = False
+
+    def update_mapping(self, socket_address, in_port):
+        self.port_mapping[socket_address] = {
             'in_port': in_port,
             'last_seen': time.time(),
             'mac_address': None
         }
+
     def update_macaddress(self,client_socket,macaddress):
         self.port_mapping[client_socket]['mac_address'] = macaddress
+
     def getportmap(self):
-     return self.port_mapping
-    
-    # gets socket address from port_mapping hash map.
+        return self.port_mapping
+
     def getsockaddr(self, target_mac):
         for source_address, info in self.port_mapping.items():
             if info['mac_address'] == target_mac:
                 return source_address
         return None
 
+    def fwdclient(self,socket_address,data):
+        socket_address.send(data)
+        print(f'data succesfully sent to {self.port_mapping[socket_address]}')
+
     def shutdown_threads(self):
         self.exit_signal.set()
-    def send_to_all(self,data):
-       for client_socket in self.port_mapping.items():
-            client_socket.send(data)
-            if client_socket.recv(1024).decode() == 'Acknowledge':
-                print('Acknowledge received')
-                _,client_port =client_socket.getpeername()
-                self.update_mapping(client_socket,client_port)
-            else:
-                print(f'Acknowledge not received,{_}{client_port}')
 
+    def send_to_all(self, data):
+        print("sending to everyone", data)
+        for client_socket, info in self.port_mapping.items():
+            try:
+                client_socket.settimeout(1)
+                client_socket.send(data.encode('utf-8'))
+                acknowledgment = client_socket.recv(1024).decode('utf-8')
 
-    
+                if acknowledgment == 'Acknowledge':
+                    print(f'Acknowledge received from {info["source_address"]}')
+                    self.update_mapping(info["source_address"], info["in_port"])
+                else:
+                    print(f'Acknowledge not received from {info["source_address"]}')
+            except Exception as e:
+                print(f'Error sending/receiving data to/from {info["source_address"]}: {e}')
+
     def handle_station_data(self,client_socket):
         client_port = self.port_mapping[client_socket]
-    
+
         if client_socket in self.port_mapping:
 
             while not self.exit_signal.is_set():
                 try:
                     # Check if there is data available to be read
-                    readable, _, _ = select.select([client_socket], [], [], 1.0)  # 1.0 second timeout
+                    readable, _, _ = select.select([client_socket], [], [], 1.0) # 1.0 second timeout
                     if client_socket in readable:
-                        data = client_socket.recv(1024)
-                        # data[0] = macaddress
-                        # data[1] = port number
-                        self.update_mapping(client_socket,client_socket.getpeername()[1])
-                        
+                        data =  client_socket.recv(1024)
+                        print(f' when staion sends the first file client_socket{client_socket}')
+                        if data is not None:
+                            received_data = json.loads(data.decode('utf-8'))
+                            print(received_data)
+                            # Extract or map variables
+                            in_port = client_socket.getpeername()[1]
+                            source_name = received_data['Source Name']
+                            source_ip = received_data['Source IP']
+                            source_mac = received_data['Source MAC']
+                            dest_host = received_data['Dest Host']
+                            dest_ip = received_data['Dest IP']
+                            dest_mac = received_data['Dest MAC']
+                            message = received_data['Message']
+                            print(data)
+                            print(source_mac,dest_mac)
+                            if source_mac is None and dest_mac is None:
+                                self.send_to_all(data)
+                                break
+                            self.update_mapping(client_socket,in_port)
+                            self.update_macaddress(client_socket,source_mac)
+                            if self.getsockaddr(dest_mac):
+                                self.fwdclient(client_socket,data)
+                            else: 
+                                print('station not found sending data to all the connections')
+                                self.send_to_all(data)
+
                         if not data:
                             # Connection closed by the client
                             print(f"Connection closed by {client_socket.getpeername()[1]}")
                             break
-                        else:
-                            # Process the received data
-                            
-                            print(f"Received data from {client_socket.getpeername()}: {data.decode()}")
-                            #Assumming first header file of the data is destination macaddress or ip.
-                            if data[0] not in {info['mac_address'] for info in self.port_mapping.values()}:
-                                self.send_to_all(data)
-
-                            else:
-                                senders_socket = self.getsockaddr(data[0])
-                                print('MAC address already exists',senders_socket)
-                                print('Sending Acknowledge')
-                                client_socket.send('Acknowledge'.encode())
+                        
 
                             
                                 
@@ -91,91 +117,22 @@ class Bridge:
                     
                     # Handle other exceptions if necessary
                     break
+
     def check_connection_status(self):
         print("check_connection_status,started!!!")
+        self.check_connection_status_running = True
         while not self.exit_signal.is_set():
-            if len(self.port_mapping ) !=0:
-                for source_address, info in self.port_mapping.items():
-                    if time.time() - info['last_seen'] > 60:
-                        # Remove the mapping if no data has been received for 60 seconds
-                        print(f"Station {source_address} has timed out")
-                        del self.port_mapping[source_address]
+            if len(self.port_mapping) != 0:
+                with self.lock:
+                    for source_address, info in list(self.port_mapping.items()):
+                        if time.time() - info['last_seen'] > 60:
+                            # Remove the mapping if no data has been received for 60 seconds
+                            print(f"Station {source_address} has timed out")
+                            del self.port_mapping[source_address]
                 time.sleep(30)
+                self.check_connection_status_running = False
             else:
                 time.sleep(10)
                 continue
-    
-        
-        
-    
-    
-    
-
-
-# def parse_bridge_file():
-#     bridges = []
-#     with open(BRIDGE_FILE_PATH, 'r') as file:
-#         for line in file:
-#             # Split each line into tokens
-#             tokens = line.strip().split(',')
-
-#             # Check if the line has at least two tokens (name and IP address)
-#             if len(tokens) >= 3:
-#                 name = tokens[0]
-#                 ip_address = tokens[1]
-#                 port = int(tokens[2])
-#                 bridges.append(Bridge(name,ip_address,port))
-#     return bridges
-
-
-# def remove_line_from_file(lan_name):
-
-#     try:
-#         # Read the file into a list
-#         with open(BRIDGE_FILE_PATH, 'r') as file:
-#             lines = file.readlines()
-
-#         # Filter lines that do not match the specified values
-#         updated_lines = [line for line in lines if lan_name not in line]
-
-#         # Write the updated lines back to the file
-#         with open(BRIDGE_FILE_PATH, 'w') as file:
-#             file.writelines(updated_lines)
-#     except:
-#         print('File does not exist')
-
-
-# def process_data_frame(data):
-#     source_mac = data[:6]
-#     dest_mac = data[6:12]
-#     frame = data[12:]
-#     return source_mac, dest_mac, frame
-
-# def file_write(ip_addrr,PORT, station_name):
-#     with open(BRIDGE_FILE_PATH, "a") as f:
-#         f.write(f"{station_name},{ip_addrr},{PORT}\n")
-
-# def forward_frame(self, data_frame, in_port):
-#         # Check if the mapping for the incoming port is defined
-#         if in_port not in self.port_mapping:
-#             # If not defined, forward the frame to all ports
-#             self.forward_to_all_ports(data_frame, in_port)
-#             # Update the mapping with the learned port for the source address
-#             self.update_mapping(data_frame['source_address'].iloc[0], in_port)
-#         else:
-#             # If the mapping is defined, forward the frame to the specified port
-#             out_port = self.port_mapping[in_port]
-#             self.forward_to_port(data_frame, in_port, out_port)
-
-# def forward_to_all_ports(self, data_frame, in_port):
-#         # Forward the frame to all ports except the incoming port
-#         for port in self.get_all_ports():
-#             if port != in_port:
-#                 self.forward_to_port(data_frame, in_port, port)
-# def forward_to_port(self, data_frame, in_port, out_port):
-#         # Simulate forwarding the frame to a specific port
-#         print(f"Forwarding frame from port {in_port} to port {out_port}:")
-#         print(data_frame)
-#         print("")
-
-
+#
+#This code defines a `Bridge` class that manages connections between different stations. It includes methods for updating the port mapping, handling station data, checking connection status, and sending data to all connected stations. The code also includes proper commenting to explain the purpose of each method and its functionality.

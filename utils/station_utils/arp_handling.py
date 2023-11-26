@@ -13,6 +13,7 @@ class ARPTable(Stationparser):
     def __init__(self):
         super().__init__()
         self.arp_entries = []
+        
 
     def add_arp_entry(self, ip_address, mac_address):
         timestamp = time.time()
@@ -37,7 +38,8 @@ class ARPTable(Stationparser):
                 return entry.mac_address
         return None    
     
-    def remove_stale_entries(self):
-        # Remove entries that have exceeded the timeout
-        current_time = time.time()
-        self.arp_entries = [entry for entry in self.arp_entries if (current_time - entry.entry_timestamp) < self.entry_timeout]
+    # def remove_stale_entries(self):
+    #     # Remove entries that have exceeded the timeout
+    #     current_time = time.time()
+        
+    #     self.arp_entries = [entry for entry in self.arp_entries if (current_time - entry.entry_timestamp) < entry.entry_timeout]

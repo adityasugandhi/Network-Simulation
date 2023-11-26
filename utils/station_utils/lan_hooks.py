@@ -30,8 +30,8 @@ class Lanhooks:
                 'Message': user_input[len(host):]
             }
 
-            for entry in self.arp_tables:
-                self.arp_tables[entry].remove_stale_entries()
+            # for entry in self.arp_tables:
+            #     self.arp_tables[entry].remove_stale_entries()
 
             if host in self.arp_tables:
                 data_to_send['Dest IP'] = self.arp_tables[host].ip_address

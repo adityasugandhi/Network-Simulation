@@ -2,6 +2,7 @@ import select
 import threading
 import random as r
 import argparse
+import asyncio
 from utils.bridge_utils.bridge_init import Bridge
 from utils.bridge_utils.bridge_parser import Bridgeparser
 
@@ -66,7 +67,7 @@ def start_server():
             client_socket, client_address = bridge.bridge_socket.accept()
             if len(bridge.port_mapping) < MAX_CONNECTIONS:
                 client_socket.send('accept'.encode())
-                print(client_address[1])
+                print(client_address[1],client_socket)
                 bridge.update_mapping(client_socket,client_address[1])
                 print(f"Accepted connection from {client_address}")
                 bridge.active_ports.append(client_socket)
@@ -76,15 +77,16 @@ def start_server():
                 print(f"Rejected connection from {client_address} as ports are full")
 
             # Start a new thread to handle messages from this client
-            threading.Thread(target=bridge.handle_station_data, args=(client_socket,)).start()
+            threading.Thread(target=bridge.handle_station_data,args=(client_socket,)).start()
+            #asyncio.create_task(bridge.handle_station_data(client_socket))
             # Start the check connection status on a different thread 
-            threading.Thread(target=bridge.check_connection_status).start()
+            if not bridge.check_connection_status:
+                threading.Thread(target=bridge.check_connection_status).start()
             # Start  handle_user_input on a different thread for bridge
             #threading.Thread(target=handle_user_input, args=(bridge,)).start()
         else:
             print('Exit signal received. Shutting down...')
             bridge.exit_signal.set()
-            B.remove_line_from_file(station_name)
             print('Removed line from file')
             bridge.bridge_socket.close()
             print('Exiting...')
@@ -95,9 +97,7 @@ if __name__ == "__main__":
     try:
         bridges = B.parse_bridge_file()
         bridge_names = [bridge.name for bridge in bridges]
-        bridge_addr = [bridge.ip_address for bridge in bridges]
-        print(bridge_addr)
-
+        
         if station_name not in bridge_names:
             #user_input_thread = threading.Thread(target=handle_user_input)
             #user_input_thread.start()
@@ -112,6 +112,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Ctrl+C detected. Exiting...")
         exit_signal.set()
+        B.remove_line_from_file(station_name)
         main_thread.join() # Wait for the main thread to finish
 
 #
