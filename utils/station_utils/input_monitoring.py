@@ -1,3 +1,4 @@
+# Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 import socket
 import select
 import sys

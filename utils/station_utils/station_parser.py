@@ -1,3 +1,4 @@
+# Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from ..settings import interface_file, routingtable_file, host_file
 
 class Stationparser:

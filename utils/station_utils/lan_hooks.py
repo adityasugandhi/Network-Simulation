@@ -1,3 +1,4 @@
+# Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 import socket
 #from utils.bridge_utils.bridge_init import parse_bridge_file
 from utils.bridge_utils.bridge_parser import Bridgeparser

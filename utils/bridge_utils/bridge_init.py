@@ -1,4 +1,4 @@
-
+# Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 import threading
 import socket
 import select
