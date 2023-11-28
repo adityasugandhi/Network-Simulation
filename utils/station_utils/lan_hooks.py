@@ -20,46 +20,9 @@ class Lanhooks:
     def __init__(self) -> None:
         self.bridges = []
         self.arp_tables = {}
+        self.pending_queue = []
     
-    def send_user_input_to_bridge(self, socket):
-        while True:
-            user_input = input("Enter your message and host to send message to in format host: message (type 'exit' to quit): ")
-            host = user_input.split(':')[0]
-
-            data_to_send = {
-                'Source Name': 'Station',
-                'Source IP': None,
-                'Source MAC': None,
-                'Dest Host': host,
-                'Dest IP': None,
-                'Dest MAC': None,
-                'Message': user_input[len(host):],
-                'Acknowledge': False
-            }
-
-            # for entry in self.arp_tables:
-            #     self.arp_tables[entry].remove_stale_entries()
-
-            if host.lower() in self.arp_tables:
-                data_to_send['Dest IP'] = self.arp_tables[host.lower()].ip_address
-                data_to_send['Dest MAC'] = self.arp_tables[host.lower()].mac_address
-
-            json_data = json.dumps(data_to_send)
-                
-
-            if user_input.lower() == "exit":
-                break
-
-            try:
-                socket.send(json_data.encode("utf-8"))
-                print("Message sent.")
-
-            except socket.error as e:
-                print(f"Error sending data: {e}")
-                break
-        socket.close()
-
-
+   
     def connect_to_bridge(self,ip_address, port, interface):
         try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -156,7 +119,7 @@ class Lanhooks:
                     if user_input == 'show arp':
                         show_arp_table(self.arp_tables)
                     elif user_input == 'show pq':
-                        pass
+                        self.show_pending_queue()
                     elif user_input == 'show host':
                         print(H.show_hosts(hosts))
                     elif user_input == 'show iface':
@@ -173,6 +136,19 @@ class Lanhooks:
                         message = user_input[6 + len(dest):]
                         self.send_to_host(dest,message,hosts, rt_table, interfaces, sockets_list, connections)
 
+                else:
+                    data = sock.recv(1024)
+
+                    if not data:
+                        # Connection closed by bridge
+                        print(f"Connection closed by {sock.getpeername()}")
+                        sockets_list = [s for s in sockets_list if s != sock]
+                        sock.close()
+                    else:
+                        # Process the received data
+                        print(f"Received data: {data.decode('utf-8')}")
+
+
     def send_to_host(self, dest, message, hosts, rt_table, interfaces, sockets_list, connections):
         dest_ip = H.get_host_ip(hosts, dest)
         dest_mac = None
@@ -181,6 +157,7 @@ class Lanhooks:
         
         if dest_ip in self.arp_tables:
             dest_mac = self.arp_tables[dest_ip]
+
 
         data_to_send = {
             'Source IP': source_ip,
@@ -225,6 +202,20 @@ class Lanhooks:
         json_data = json.dumps(data_to_send)
         client_socket.send(json_data.encode('utf-8'))
         print('metadata sent')
+
+
+    def check_valid_in_queue(self):
+        for ip in self.pending_queue:
+            if ip in self.arp_tables:
+                return ip
+        return None
+    
+    def remove_from_queue(self,ip):
+        self.pending_queue = [q for q in self.pending_queue if q != ip]
+
+    def show_pending_queue(self):
+        for ip in self.pending_queue:
+            print(ip)
         
 
 
