@@ -1,5 +1,6 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from ..settings import interface_file, routingtable_file, host_file
+import pandas as pd
 
 class Stationparser:
     def __init__(self) -> None:
@@ -20,7 +21,7 @@ class Interfaces(Stationparser):
 class Interfaceparser(Stationparser):
     def __init__(self):
          super().__init__()
-         self.last_interface_instance = None  
+         self.last_interface_instance = None
     def parse_interface_file(self, interface_file):
         interfaces = []
         with open(interface_file, 'r') as file:
@@ -60,6 +61,34 @@ class Interfaceparser(Stationparser):
             'Mac Address': iface.mac_address,
             'Lan Name': iface.lan_name
         }
+    
+    def list_of_iface_dicts(self,ifaces):
+        return [self.interface_to_dict(iface) for iface in ifaces]
+    
+
+    def show_ifaces(self, interfaces):
+        names = []
+        ips = []
+        subnets = []
+        macs = []
+        lans = []
+        for iface in interfaces:
+            names.append(iface.name)
+            ips.append(iface.ip_address)
+            subnets.append(iface.subnet_mask)
+            macs.append(iface.mac_address)
+            lans.append(iface.lan_name)
+
+        ifaces_df = pd.DataFrame({
+            'Name': names,
+            'IP Address': ips,
+            'Subnet Mask': subnets,
+            'Mac Address': macs,
+            'Lan Name': lans 
+        })
+
+        print('Interface Table:')
+        print(ifaces_df)
     
 class Routingtable(Stationparser):
     def __init__(self,dest_network,next_hop_ip,network_mask,network_interface) -> None:

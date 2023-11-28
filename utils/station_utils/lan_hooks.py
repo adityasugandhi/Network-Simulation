@@ -4,13 +4,16 @@ import socket
 from utils.bridge_utils.bridge_parser import Bridgeparser
 from utils.station_utils.station_parser import Interfaces,Interfaceparser
 import threading
-from utils.station_utils.arp_handling import ARPTable
+from utils.station_utils.arp_handling import ARPEntry, show_arp_table
 import time
 import json
+import select
+import sys
+import pandas as pd
 
 B = Bridgeparser()
-
 ifaceparser = Interfaceparser()
+
 class Lanhooks:
     def __init__(self) -> None:
         self.bridges = []
@@ -28,15 +31,16 @@ class Lanhooks:
                 'Dest Host': host,
                 'Dest IP': None,
                 'Dest MAC': None,
-                'Message': user_input[len(host):]
+                'Message': user_input[len(host):],
+                'Acknowledge': False
             }
 
             # for entry in self.arp_tables:
             #     self.arp_tables[entry].remove_stale_entries()
 
-            if host in self.arp_tables:
-                data_to_send['Dest IP'] = self.arp_tables[host].ip_address
-                data_to_send['Dest MAC'] = self.arp_tables[host].mac_address
+            if host.lower() in self.arp_tables:
+                data_to_send['Dest IP'] = self.arp_tables[host.lower()].ip_address
+                data_to_send['Dest MAC'] = self.arp_tables[host.lower()].mac_address
 
             json_data = json.dumps(data_to_send)
                 
@@ -53,6 +57,7 @@ class Lanhooks:
                 break
         socket.close()
 
+
     def connect_to_bridge(self,ip_address, port, interface):
         try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -65,20 +70,12 @@ class Lanhooks:
                     print('-----Connection accepted-----')
                     #s.send(macaddress.encode())
                     print('-----Sending MAC address-----')
-                    print(type(s))
+                    # print(type(s))
 
                     # Add ARP entry to the ARP table for the LAN
-                    if interface['Lan Name'].lower() not in self.arp_tables:
-                        self.arp_tables[interface['Lan Name'].lower()] = ARPTable()
-
-                        # arp_table = self.arp_tables[interface_dict['Lan Name']]
-                        # arp_table.add_arp_entry(interface_dict['IP Address'], interface_dict['Mac Address'])
-                        self.arp_tables[interface['Lan Name'].lower()].add_arp_entry(interface['IP Address'], interface['Mac Address'])
-
-                    # Start a thread for handling ARP requests
-                    # threading.Thread(target=self.arp_handler, args=(interface['Lan Name'],)).start()
-                    threading.Thread(target=self.send_user_input_to_bridge,args=(s,)).start()
-                   
+                    if interface['IP Address'] not in self.arp_tables:
+                        self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
+   
                 return response, s
 
         except socket.error as e:
@@ -90,21 +87,15 @@ class Lanhooks:
         connections = []
         for interface in interfaces:
             interface_dict = ifaceparser.interface_to_dict(interface)
-            # print(interface_dict)
-            #print(interface_dict)
-
+   
             bridges = B.parse_bridge_file()
 
-        
             for bridge in bridges:
-                # print(bridge.name)
-                # print(interface_dict['Lan Name'])
+
                 port = None
                 if bridge.name == interface_dict['Lan Name']:
-                    # print(bridge.name)
-                    # print(interface_dict['Lan Name'])
                     port = bridge.port
-                    print(port)
+                    # print(port)
                 else:
                     print(f"Bridge {interface_dict['Lan Name']} not found")
 
@@ -119,24 +110,63 @@ class Lanhooks:
                         
                     else:
                         print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
+        
+        self.handle_arp(connections, interfaces)
+ 
 
-        return connections
-    
-    def send_to_bridge(self, connections, message):
-        connections.send(message.encode())
-    # BEGIN: be15d9bcejpp
-    # END: be15d9bcejpp
+    def handle_arp(self,connections,interfaces, is_router=False):
+        sockets_list = [connection['Socket'] for connection in connections]
+        
+        should_listen = True
+        prompt_displayed = False
 
-    def arp_handler(self,lan_name):
-        arp_table = self.arp_tables[lan_name]
-        while True:
-            # Simulate ARP handling (replace this with actual ARP handling logic)
-            print(f"Handling ARP requests for LAN: {lan_name}")
-            print("ARP Table:")
-            for entry in arp_table.arp_entries:
-                print(f"IP: {entry.ip_address}, MAC: {entry.mac_address}")
-            # Sleep for a while before handling the next ARP request
-            time.sleep(5)
+        while should_listen:
+            # Use select to wait for events on the sockets
+            readable, _, _ = select.select(sockets_list + [sys.stdin], [], [], .1)
+
+            # Print the default message prompt
+            if not prompt_displayed:
+                sys.stdout.write('''
+            Station Supported Commands -
+            send <destination> <message> // send message to a destination host
+            show arp 		// show the ARP cache table information
+            show pq 		// show the pending_queue
+            show host 		// show the IP/name mapping table
+            show iface 		// show the interface information
+            show rtable 		// show the contents of routing table
+            quit // close the station
+                ''')
+                sys.stdout.write(">> ")
+                sys.stdout.flush()  # Flush to ensure the message is immediately displayed
+                prompt_displayed = True
+
+            for sock in readable:
+                user_input = ''
+                if sock == sys.stdin:
+                    user_input = sys.stdin.readline().strip()
+                    prompt_displayed = False
+
+                    if user_input == 'show arp':
+                        show_arp_table(self.arp_tables)
+                    elif user_input == 'show pq':
+                        pass
+                    elif user_input == 'show host':
+                        pass
+                    elif user_input == 'show iface':
+                        ifaceparser.show_ifaces(interfaces)
+                    elif user_input == 'show rtable':
+                        pass
+                    elif user_input == 'quit':
+                        for s in sockets_list:
+                            s.close()
+                        
+                        should_listen = False
+                    elif user_input[:4] == 'send' and not is_router and len(user_input.split(' ')) >= 3:
+                        dest = user_input.split(' ')[1]
+                        message = user_input[6 + len(dest):]
+                        print(message)
+
+                
 
     
     
