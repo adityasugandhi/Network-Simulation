@@ -64,59 +64,49 @@ class Bridge:
             except Exception as e:
                 print(f'Error sending/receiving data to/from {info["source_address"]}: {e}')
 
-    def handle_station_data(self,client_socket):
+    def handle_station_data(self,client_socket,data):
         client_port = self.port_mapping[client_socket]
 
         if client_socket in self.port_mapping:
-
-            while not self.exit_signal.is_set():
-                try:
-                    # Check if there is data available to be read
-                    readable, _, _ = select.select([client_socket], [], [], 1.0) # 1.0 second timeout
-                    if client_socket in readable:
-                        data =  client_socket.recv(1024)
-                        print(f' when staion sends the first file client_socket{client_socket}')
-                        if data is not None:
-                            received_data = json.loads(data.decode('utf-8'))
-                            print(received_data)
-                            # Extract or map variables
-                            in_port = client_socket.getpeername()[1]
-                            source_name = received_data['Source Name']
-                            source_ip = received_data['Source IP']
-                            source_mac = received_data['Source MAC']
-                            dest_host = received_data['Dest Host']
-                            dest_ip = received_data['Dest IP']
-                            dest_mac = received_data['Dest MAC']
-                            message = received_data['Message']
-                            print(data)
-                            print(source_mac,dest_mac)
-                            if source_mac is None and dest_mac is None:
-                                self.send_to_all(data)
-                                break
-                            self.update_mapping(client_socket,in_port)
-                            self.update_macaddress(client_socket,source_mac)
-                            if self.getsockaddr(dest_mac):
-                                self.fwdclient(client_socket,data)
-                            else: 
-                                print('station not found sending data to all the connections')
-                                self.send_to_all(data)
-
-                        if not data:
-                            # Connection closed by the client
-                            print(f"Connection closed by {client_socket.getpeername()[1]}")
-                            break
-                        
-
-                            
-                                
-                except BlockingIOError:
-                    # Handle the case where there is no data to read
-                    pass
-                except Exception as e:
-                    print(f"Error receiving data: {e}")
+            print(client_socket)
+            client_socket.send(b'data_received')
+            print('data-send')
+            
+            if data is not None:
+                received_data = json.loads(data.decode('utf-8'))
+                print(received_data)
+                # Extract or map variables
+                in_port = client_socket.getpeername()[1]
+                source_name = received_data['Source Name']
+                source_ip = received_data['Source IP']
+                source_mac = received_data['Source MAC']
+                dest_host = received_data['Dest Host']
+                dest_ip = received_data['Dest IP']
+                dest_mac = received_data['Dest MAC']
+                message = received_data['Message']
+                flag = received_data['acknowledgement']
+                print(data)
+                print(source_mac,dest_mac)
+                if source_mac is None and dest_mac is None:
+                    self.send_to_all(data)
                     
-                    # Handle other exceptions if necessary
-                    break
+                self.update_mapping(client_socket,in_port)
+                self.update_macaddress(client_socket,source_mac)
+                if self.getsockaddr(dest_mac):
+                    self.fwdclient(client_socket,data)
+                else: 
+                    print('station not found sending data to all the connections')
+                    self.send_to_all(data)
+
+                if not data:
+                    # Connection closed by the client
+                    print(f"Connection closed by {client_socket.getpeername()[1]}")
+                    
+                    
+
+                        
+                        
+       
 
     def check_connection_status(self):
         print("check_connection_status,started!!!")
