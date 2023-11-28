@@ -111,8 +111,8 @@ def start_server():
                             source_mac = data_received['Source MAC']
                             bridge.update_macaddress(sock, source_mac)
                         else:
-                            print(f"Received data from {bridge.port_mapping[sock]}: {data.decode()}")
-                            bridge.handle_station_data(client_socket,data)
+                            print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
+                            bridge.handle_station_data(client_socket,json_data)
                         if not data:
                             print(f"Closing connection with {bridge.port_mapping[sock]}")
                             sock.close()

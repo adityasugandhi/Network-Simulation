@@ -45,6 +45,7 @@ class Bridge:
         return None
 
     def fwdclient(self,socket_address,data):
+        data = data.encode()
         socket_address.send(data)
         print(f'data succesfully sent to {self.port_mapping[socket_address]}')
 
@@ -69,7 +70,7 @@ class Bridge:
 
     def handle_station_data(self,client_socket,data):
         client_port = self.port_mapping[client_socket]
-
+        
         if client_socket in self.port_mapping:
             print(client_socket)
             client_socket.send(b'data_received')
@@ -87,14 +88,17 @@ class Bridge:
                 dest_ip = received_data['Dest IP']
                 dest_mac = received_data['Dest MAC']
                 message = received_data['Message']
-                flag = received_data['acknowledgement']
+                flag = received_data['Acknowledgement']
                 print(data)
                 print(source_mac,dest_mac)
                 if source_mac is None and dest_mac is None:
-                    self.send_to_all(data)
-                    
+                    self.send_to_all(data)  
+                
                 self.update_mapping(client_socket,in_port)
+                # updates the macddress in learning table
                 self.update_macaddress(client_socket,source_mac)
+                
+                # if the dest_mac is in self-learning table then we fwd to the client
                 if self.getsockaddr(dest_mac):
                     self.fwdclient(client_socket,data)
                 else: 
@@ -106,6 +110,8 @@ class Bridge:
                     print(f"Connection closed by {client_socket.getpeername()[1]}")
     
     def show_port_mapping(self):
+        if not self.port_mapping:
+            print('self learning table is empty')
         # Iterate over the entries in self.port_mapping
         for socket_address,mapping_info in self.port_mapping.items():
             in_port = mapping_info['in_port']
