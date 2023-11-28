@@ -2,7 +2,7 @@
 import threading
 import socket
 import select
-import asyncio
+import sys
 import time
 import json
 
@@ -21,6 +21,9 @@ class Bridge:
         self.exit_signal = threading.Event()
         self.lock = threading.Lock()
         self.check_connection_status_running = False
+
+    def __str__(self) -> str:
+        return f"{self.name},{self.ip_address},{self.port}"
 
     def update_mapping(self, socket_address, in_port):
         self.port_mapping[socket_address] = {
@@ -101,7 +104,30 @@ class Bridge:
                 if not data:
                     # Connection closed by the client
                     print(f"Connection closed by {client_socket.getpeername()[1]}")
-                    
+    
+    def show_port_mapping(self):
+        # Iterate over the entries in self.port_mapping
+        for socket_address,mapping_info in self.port_mapping.items():
+            in_port = mapping_info['in_port']
+            last_seen = mapping_info['last_seen']
+            mac_address = mapping_info['mac_address']
+
+            # Format the output as desired (assuming socket_address is an IP address)
+            table = f"| {in_port:<6} | {mac_address if mac_address is not None else 'N/A':<20} | {time.ctime(last_seen)} |"
+
+# Print the table header
+            print("+--------+----------------------+--------------------------+")
+            print("| Port   | MAC Address          | Last Seen                |")
+            print(table)
+                
+    def promptdisplay(self):
+        sys.stdout.write('''
+            show sl // show the contents of self-learning table
+	    quit    // close the bridge
+''')    
+        sys.stdout.write(">> ")
+        sys.stdout.flush() 
+
                     
 
                         

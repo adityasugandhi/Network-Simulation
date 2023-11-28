@@ -168,6 +168,7 @@ class HostParser(Stationparser):
     def __init__(self):
         super().__init__()
 
+        
 
     def parse_hostname_file(self, host_file):
         hosts = []
@@ -182,25 +183,21 @@ class HostParser(Stationparser):
                     ip_address = tokens[1]
                     host = Host(name, ip_address)
                     hosts.append(host)
-        return hosts
+
+        self.host_list = hosts
+        return hosts  # Save the parsed hosts in the object's host_list
+        
     
 
-    def show_hosts(self, hosts):
-        names = []
-        ips = []
-      
-        for h in hosts:
-            names.append(h.name)
-            ips.append(h.ip_address)
+    def show_hosts(self,hosts):
+        
+        output = "Hosts Table:\n"
+        output += "{:<10} {:<15}\n".format("Name", "IP Address")
 
-        hosts_df = pd.DataFrame({
-            'Name': names,
-            'IP Address': ips,
-        })
+        for host in hosts:
+            output += "{:<10} {:<15}\n".format(host.name, host.ip_address)
 
-        print('Hosts Table:')
-        print(hosts_df)
-
+        return output
 
     def get_host_ip(self, hosts, name):
         for host in hosts:

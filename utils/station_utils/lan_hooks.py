@@ -70,9 +70,9 @@ class Lanhooks:
                 
                 if response == 'accept':
                     print('-----Connection accepted-----')
-                    #s.send(macaddress.encode())
-                    print('-----Sending MAC address-----')
-                    # print(type(s))
+                    
+                    print('-----Sending Metadata-----')
+                    self.metadata(interface,s)
 
                     # Add ARP entry to the ARP table for the LAN
                     if interface['IP Address'] not in self.arp_tables:
@@ -100,6 +100,7 @@ class Lanhooks:
                 port = None
                 if bridge.name == interface_dict['Lan Name']:
                     port = bridge.port
+                    mac_address = interface_dict['Mac Address']
                     # print(port)
                 else:
                     print(f"Bridge {interface_dict['Lan Name']} not found")
@@ -112,6 +113,7 @@ class Lanhooks:
                     if response == "accept":
                         print(f"Connected to {bridge.name} bridge at {bridge.ip_address}:{bridge.port}")
                         connections.append({'Socket': s, 'Bridge': bridge, 'Interface': interface_dict })
+
                         
                     else:
                         print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
@@ -156,7 +158,7 @@ class Lanhooks:
                     elif user_input == 'show pq':
                         pass
                     elif user_input == 'show host':
-                        H.show_hosts(hosts)
+                        print(H.show_hosts(hosts))
                     elif user_input == 'show iface':
                         ifaceparser.show_ifaces(interfaces)
                     elif user_input == 'show rtable':
@@ -209,6 +211,22 @@ class Lanhooks:
                 return i
             else:
                 i += 1
+    
+    def metadata(self,interface,client_socket):
+        data_to_send = {
+            'Source IP': interface['IP Address'],
+            'Source MAC': interface['Mac Address'],
+            'Dest Host': None,
+            'Dest IP': None,
+            'Dest MAC': None,
+            'Message': 'metadata',
+            'Acknowledge': False
+        }
+        json_data = json.dumps(data_to_send)
+        client_socket.send(json_data.encode('utf-8'))
+        print('metadata sent')
+        
+
 
 
 

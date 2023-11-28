@@ -1,6 +1,10 @@
+# Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
+import json
 import socket
+import sys
 import select
 import threading
+import time
 import random as r
 import argparse
 from utils.bridge_utils.bridge_init import Bridge
@@ -56,53 +60,77 @@ def start_server():
 
     print(bridge.getportmap())
     B.file_write(ip_addrr, PORT, str(station_name))
-
+    bridge.promptdisplay()
     while not exit_signal.is_set():
         try:
-            readable, _, _ = select.select([bridge.bridge_socket] + bridge.active_ports, [], [], 1.0)  # 1.0 second timeout
-        except BlockingIOError:
-            continue
+            readable, _, _ = select.select([bridge.bridge_socket] + bridge.active_ports+ [sys.stdin], [], [], 1.0)  # 1.0 second timeout        
 
-        for sock in readable:
-            if sock is bridge.bridge_socket:
-                # New connection
-                client_socket, client_address = bridge.bridge_socket.accept()
-                print(client_socket)
-                if len(bridge.port_mapping) < MAX_CONNECTIONS:
-                    client_socket.send('accept'.encode())
-                    print(client_address[1], client_socket)
-                    bridge.update_mapping(client_socket, client_address[1])
-                    print(f"Accepted connection from {client_address}")
-                    bridge.active_ports.append(client_socket)
+            for sock in readable:
+                if sock == sys.stdin:
+                    user_input = sys.stdin.readline().strip()
+                    showprompt = False
+                    waitstdin = False
+                    if user_input == 'show sl':
+                        bridge.show_port_mapping()
+                    elif user_input == 'quit':
+                        exit_signal.set()
+                        break
+                    else:
+                        bridge.promptdisplay()
+
+                
+                
+                elif sock == bridge.bridge_socket:
+                    # New connection
+                    client_socket, client_address = bridge.bridge_socket.accept()
+                    print(client_socket)
+                    if len(bridge.port_mapping) < MAX_CONNECTIONS:
+                        client_socket.send('accept'.encode())
+                        print(client_address[1], client_socket)
+                        bridge.update_mapping(client_socket, int(client_address[1]))
+                        print(f"Accepted connection from {client_address}")
+                        bridge.active_ports.append(client_socket)
+                        bridge.promptdisplay()
+                    else:
+                        client_socket.send('reject'.encode())
+                        client_socket.send('Port are full'.encode())
+                        print(f"Rejected connection from {client_address} as ports are full")
+
+                    # Start the check connection status on a different thread
+                    if not bridge.check_connection_status:
+                        threading.Thread(target=bridge.check_connection_status).start()
                 else:
-                    client_socket.send('reject'.encode())
-                    client_socket.send('Port are full'.encode())
-                    print(f"Rejected connection from {client_address} as ports are full")
-
-                # Start the check connection status on a different thread
-                if not bridge.check_connection_status:
-                    threading.Thread(target=bridge.check_connection_status).start()
-            else:
-                # Existing client, handle data
-                try:
-                    data = sock.recv(1024)
-                    if not data:
-                        print(f"Closing connection with {bridge.port_mapping[sock]}")
+                    # Existing client, handle data
+                    try:
+                        data = sock.recv(1024)
+                        json_data = data.decode('utf-8')
+                        data_received = json.loads(json_data)
+                        # checks for metadata string, always from station.
+                        if data_received['Message'] == 'metadata':
+                            source_ip = data_received['Source IP']
+                            source_mac = data_received['Source MAC']
+                            bridge.update_macaddress(sock, source_mac)
+                        else:
+                            print(f"Received data from {bridge.port_mapping[sock]}: {data.decode()}")
+                            bridge.handle_station_data(client_socket,data)
+                        if not data:
+                            print(f"Closing connection with {bridge.port_mapping[sock]}")
+                            sock.close()
+                            bridge.active_ports.remove(sock)
+                            del bridge.port_mapping[sock]
+                        
+                    except Exception as e:
+                        print(f"Error handling client {bridge.port_mapping[sock]}: {str(e)}")
                         sock.close()
                         bridge.active_ports.remove(sock)
                         del bridge.port_mapping[sock]
-                    else:
-                        print(f"Received data from {bridge.port_mapping[sock]}: {data.decode()}")
-                        bridge.handle_station_data(client_socket,data)
-                except Exception as e:
-                    print(f"Error handling client {bridge.port_mapping[sock]}: {str(e)}")
-                    sock.close()
-                    bridge.active_ports.remove(sock)
-                    del bridge.port_mapping[sock]
+        except BlockingIOError:
+            continue
 
     print('Exit signal received. Shutting down...')
     bridge.exit_signal.set()
     print('Removed line from file')
+    B.remove_line_from_file(station_name)
     bridge.bridge_socket.close()
     print('Exiting...')
 
