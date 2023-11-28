@@ -2,6 +2,12 @@
 from ..settings import interface_file, routingtable_file, host_file
 import pandas as pd
 
+
+def ip_to_int(ip):
+    # Convert IP address to integer representation
+    parts = [int(part) for part in ip.split('.')]
+    return (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3]
+
 class Stationparser:
     def __init__(self) -> None:
         self.interface_file = interface_file
@@ -89,6 +95,13 @@ class Interfaceparser(Stationparser):
 
         print('Interface Table:')
         print(ifaces_df)
+
+    def bridge_forwarding_info(self, interfaces, forwarding_interface):
+        for iface in interfaces:
+            if iface.name == forwarding_interface:
+                return iface.ip, iface.mac_address, iface.lan_name
+        return None
+
     
 class Routingtable(Stationparser):
     def __init__(self,dest_network,next_hop_ip,network_mask,network_interface) -> None:
@@ -98,9 +111,14 @@ class Routingtable(Stationparser):
         self.network_mask = network_mask
         self.network_interface = network_interface
 
-    def parse_routing_table_file(self):
+
+class Routingparser(Stationparser):
+    def __init__(self):
+         super().__init__()
+
+    def parse_routing_table_file(self, rt_file):
         routing_table = []
-        with open(self.routingtable_file, 'r') as file:
+        with open(rt_file, 'r') as file:
             for line in file:
                 # Split each line into tokens
                 tokens = line.strip().split()
@@ -115,24 +133,45 @@ class Routingtable(Stationparser):
                     forward_table = Routingtable(dest_network, next_hop_ip, network_mask, network_interface)
                     routing_table.append(forward_table)
         return routing_table
+    
+    def show_routing_table(self, routing_table):
+        print('Routing Table:')
+        print('Destination Network \t Next Hop IP \t Network Mask \t Network Interface')
+        for tb in routing_table:
+            print(f'{tb.dest_network} \t {tb.next_hop_ip} \t {tb.network_mask} \t {tb.network_interface}')
+
+    def default_ip_gateway_next_hop_interface(self,routes):
+        for route in routes:
+            if route.dest_network == '0.0.0.0':
+                return route.network_interface
+        return None
+
+    
+    def get_next_hop_interface(self, dest_ip, routes):
+        for route in routes:
+            if route.dest_network == dest_ip:
+                return route.network_interface
+        return self.default_ip_gateway_next_hop_interface(routes)
+
+
 
 
 class Host(Stationparser):
-    def __init__(self, name, ip_address):
+    def __init__(self,name, ip_address) -> None:
         super().__init__()
         self.name = name
         self.ip_address = ip_address
 
-    def to_dict(self):
-        return {
-            'Name': self.name,
-            'IP Address': self.ip_address
-        }
 
 
-    def parse_hostname_file(self):
+class HostParser(Stationparser):
+    def __init__(self):
+        super().__init__()
+
+
+    def parse_hostname_file(self, host_file):
         hosts = []
-        with open(self.host_file, 'r') as file:
+        with open(host_file, 'r') as file:
             for line in file:
                 # Split each line into tokens
                 tokens = line.strip().split()
@@ -144,3 +183,28 @@ class Host(Stationparser):
                     host = Host(name, ip_address)
                     hosts.append(host)
         return hosts
+    
+
+    def show_hosts(self, hosts):
+        names = []
+        ips = []
+      
+        for h in hosts:
+            names.append(h.name)
+            ips.append(h.ip_address)
+
+        hosts_df = pd.DataFrame({
+            'Name': names,
+            'IP Address': ips,
+        })
+
+        print('Hosts Table:')
+        print(hosts_df)
+
+
+    def get_host_ip(self, hosts, name):
+        for host in hosts:
+            if host.name == name:
+                return host.ip_address
+            
+        return None

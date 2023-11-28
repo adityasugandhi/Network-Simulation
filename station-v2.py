@@ -5,7 +5,7 @@ from utils.station_utils import input_monitoring
 import threading
 
 lhooks = Lanhooks()
-def station(interface_file: str)-> None:
+def station(interface_file: str, host_file: str, rt_file: str)-> None:
     '''
     Parameters for station are the file names with the data for interfacee, routingtable, and hostname
     Params are received through command line arguments
@@ -23,7 +23,7 @@ def station(interface_file: str)-> None:
     # print(lhooks.connect_to_all_lans())
 
     #lhooks.connect_to_bridge('127.0.0.1',,'test')
-    connections = lhooks.connect_to_all_lans(interface_file)
+    connections = lhooks.connect_to_all_lans(interface_file, host_file, rt_file)
 
     
     #thread = threading.Thread(target=input_monitoring.monitoring, args=(connections))
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     import os
 
     interface_file = os.path.abspath('./project/ifaces/ifaces.a')
-    # routingtable_file = os.path.abspath('./project/rtables/rtable.a')
-    # host_file = os.path.abspath('./project/hosts')
+    routingtable_file = os.path.abspath('./project/rtables/rtable.a')
+    host_file = os.path.abspath('./project/hosts')
     # sparser = Stationparser(interface_file,routingtable_file,host_file)
-    station(interface_file)
+    station(interface_file, host_file, routingtable_file)

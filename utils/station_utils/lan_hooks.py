@@ -2,7 +2,7 @@
 import socket
 #from utils.bridge_utils.bridge_init import parse_bridge_file
 from utils.bridge_utils.bridge_parser import Bridgeparser
-from utils.station_utils.station_parser import Interfaces,Interfaceparser
+from utils.station_utils.station_parser import Interfaces,Interfaceparser, HostParser, Routingparser
 import threading
 from utils.station_utils.arp_handling import ARPEntry, show_arp_table
 import time
@@ -13,6 +13,8 @@ import pandas as pd
 
 B = Bridgeparser()
 ifaceparser = Interfaceparser()
+H = HostParser()
+R = Routingparser()
 
 class Lanhooks:
     def __init__(self) -> None:
@@ -82,8 +84,11 @@ class Lanhooks:
             print(f"Error connecting to {ip_address}:{port}: {e}")
             return "reject"
 
-    def connect_to_all_lans(self, interface_file):
+    def connect_to_all_lans(self, interface_file, host_file, rt_file):
         interfaces = ifaceparser.parse_interface_file(interface_file)
+        hosts = H.parse_hostname_file(host_file)
+        rt_table = R.parse_routing_table_file(rt_file)
+
         connections = []
         for interface in interfaces:
             interface_dict = ifaceparser.interface_to_dict(interface)
@@ -111,10 +116,10 @@ class Lanhooks:
                     else:
                         print(f"Connection to {interface} bridge at {interface_dict['IP Address']}:{port} rejected")
         
-        self.handle_arp(connections, interfaces)
+        self.handle_arp(connections, interfaces, hosts, rt_table)
  
 
-    def handle_arp(self,connections,interfaces, is_router=False):
+    def handle_arp(self,connections,interfaces,hosts, rt_table, is_router=False):
         sockets_list = [connection['Socket'] for connection in connections]
         
         should_listen = True
@@ -151,11 +156,11 @@ class Lanhooks:
                     elif user_input == 'show pq':
                         pass
                     elif user_input == 'show host':
-                        pass
+                        H.show_hosts(hosts)
                     elif user_input == 'show iface':
                         ifaceparser.show_ifaces(interfaces)
                     elif user_input == 'show rtable':
-                        pass
+                        R.show_routing_table(rt_table)
                     elif user_input == 'quit':
                         for s in sockets_list:
                             s.close()
@@ -164,7 +169,49 @@ class Lanhooks:
                     elif user_input[:4] == 'send' and not is_router and len(user_input.split(' ')) >= 3:
                         dest = user_input.split(' ')[1]
                         message = user_input[6 + len(dest):]
-                        print(message)
+                        self.send_to_host(dest,message,hosts, rt_table, interfaces, sockets_list, connections)
+
+    def send_to_host(self, dest, message, hosts, rt_table, interfaces, sockets_list, connections):
+        dest_ip = H.get_host_ip(hosts, dest)
+        dest_mac = None
+        next_hop_interface = R.get_next_hop_interface(dest_ip, rt_table)
+        source_ip, source_mac, bridge_name = ifaceparser.bridge_forwarding_info(interfaces, next_hop_interface)
+        
+        if dest_ip in self.arp_tables:
+            dest_mac = self.arp_tables[dest_ip]
+
+        data_to_send = {
+            'Source IP': source_ip,
+            'Source MAC': source_mac,
+            'Dest Host': dest,
+            'Dest IP': dest_ip,
+            'Dest MAC': dest_mac,
+            'Message': message,
+            'Acknowledge': False
+        }
+
+        json_data = json.dumps(data_to_send)
+
+        idx_socket = self.get_socket_index(connections, bridge_name)
+
+        try:
+            sockets_list[idx_socket].send(json_data.encode('utf-8'))
+            print("Message sent.")
+
+        except socket.error as e:
+            print(f"Error sending data: {e}")
+    
+
+    def get_socket_index(self, connections, bridge_name):
+        i = 0
+        for c in connections:
+            if c['Interface']['Lan Name'] == bridge_name:
+                return i
+            else:
+                i += 1
+
+
+
 
                 
 
