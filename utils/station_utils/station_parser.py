@@ -1,6 +1,24 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from ..settings import interface_file, routingtable_file, host_file
 import pandas as pd
+import ipaddress
+
+
+
+def is_ip_in_range(ip_str, subnet_mask_str, ip_to_check):
+    ip = ipaddress.IPv4Address(ip_str)
+    subnet_mask = ipaddress.IPv4Address(subnet_mask_str)
+
+    # Calculate the network address
+    network_address = ip & subnet_mask
+
+    # Calculate the first and last usable IP addresses
+    start_ip = network_address
+    end_ip = network_address + (2 ** (32 - subnet_mask.prefixlen)) - 2
+
+    ip_to_check_ipv4 = ipaddress.IPv4Address(ip_to_check)
+
+    return start_ip <= ip_to_check_ipv4 <= end_ip
 
 
 def ip_to_int(ip):
@@ -149,7 +167,9 @@ class Routingparser(Stationparser):
     
     def get_next_hop_interface(self, dest_ip, routes):
         for route in routes:
-            if route.dest_network == dest_ip:
+            # if route.dest_network == dest_ip:
+            #     return route.network_interface
+            if is_ip_in_range(route.dest_network, route.network_mask, dest_ip):
                 return route.network_interface
         return self.default_ip_gateway_next_hop_interface(routes)
 

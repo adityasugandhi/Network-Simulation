@@ -28,20 +28,28 @@ class Lanhooks:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
                 print('------Connecting to server----')
                 s.connect((ip_address, port))
-                print('-----Waiting for response-----')
-                response = s.recv(1024).decode()
-                
-                if response == 'accept':
-                    print('-----Connection accepted-----')
-                    
-                    print('-----Sending Metadata-----')
-                    self.metadata(interface,s)
+                for attempt in range(5):
+                    readable, _, _ = select.select([s], [], [], 1)  # Check for readability with 1s timeout
 
-                    # Add ARP entry to the ARP table for the LAN
-                    if interface['IP Address'] not in self.arp_tables:
-                        self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
-   
-                return response, s
+                    if s in readable:
+                        print('-----Waiting for response-----')
+                        response = s.recv(1024).decode()
+                        
+                        if response == 'accept':
+                            print('-----Connection accepted-----')
+                            
+                            print('-----Sending Metadata-----')
+                            self.metadata(interface,s)
+
+                            # Add ARP entry to the ARP table for the LAN
+                            if interface['IP Address'] not in self.arp_tables:
+                                self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
+        
+                            return response, s
+                    
+                    time.sleep(2)
+                s.close()
+                return 'reject'
 
         except socket.error as e:
             print(f"Error connecting to {ip_address}:{port}: {e}")
@@ -91,6 +99,7 @@ class Lanhooks:
         prompt_displayed = False
 
         while should_listen:
+            self.handle_arp_timeout()
             # Use select to wait for events on the sockets
             readable, _, _ = select.select(sockets_list + [sys.stdin], [], [], .1)
 
@@ -287,6 +296,13 @@ class Lanhooks:
             if iface.name == iface_name:
                 return True
         return False
+    
+
+    def handle_arp_timeout(self):
+        for ip in self.arp_tables:
+            if self.arp_tables[ip].last_seen - time.time() > 60:
+                self.arp_tables.pop(ip)
+
 
 
 
