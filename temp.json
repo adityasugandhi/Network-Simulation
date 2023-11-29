@@ -1,0 +1,9 @@
+{
+    "Source IP": "128.252.13.40",
+    "Source MAC": "00:D0:0C:04:52:27",
+    "Dest Host": "Acs1",
+    "Dest IP": "128.252.11.23",
+    "Dest MAC": null,
+    "Type": "IP Packet",
+    "Message": "test"
+}

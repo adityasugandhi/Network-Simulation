@@ -70,11 +70,13 @@ class Bridge:
 
     def handle_station_data(self,client_socket,data):
         client_port = self.port_mapping[client_socket]
+        print('here')
+        return
         
         if client_socket in self.port_mapping:
-            print(client_socket)
-            client_socket.send(b'data_received')
-            print('data-send')
+            # print(client_socket)
+            # client_socket.send(b'data_received')
+            # print('data-send')
             
             if data is not None:
                 received_data = json.loads(data.decode('utf-8'))

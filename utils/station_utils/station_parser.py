@@ -205,3 +205,10 @@ class HostParser(Stationparser):
                 return host.ip_address
             
         return None
+    
+    def get_host_from_ip(self, hosts, ip):
+        for host in hosts:
+            if host.ip_address == ip:
+                return host.name
+            
+        return None

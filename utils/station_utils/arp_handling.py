@@ -32,3 +32,7 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
         print('ARP Table:')
         print(arp_df)
 
+
+def update_last_seen(self):
+     self.last_seen = time.time()
+
