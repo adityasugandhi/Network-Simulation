@@ -99,7 +99,7 @@ class Interfaceparser(Stationparser):
     def bridge_forwarding_info(self, interfaces, forwarding_interface):
         for iface in interfaces:
             if iface.name == forwarding_interface:
-                return iface.ip, iface.mac_address, iface.lan_name
+                return iface.ip_address, iface.mac_address, iface.lan_name
         return None
 
     

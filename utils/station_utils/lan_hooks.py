@@ -138,6 +138,7 @@ class Lanhooks:
 
                 else:
                     data = sock.recv(1024)
+                    print(data)
 
                     if not data:
                         # Connection closed by bridge
@@ -155,27 +156,50 @@ class Lanhooks:
         next_hop_interface = R.get_next_hop_interface(dest_ip, rt_table)
         source_ip, source_mac, bridge_name = ifaceparser.bridge_forwarding_info(interfaces, next_hop_interface)
         
-        if dest_ip in self.arp_tables:
-            dest_mac = self.arp_tables[dest_ip]
-
-
         data_to_send = {
             'Source IP': source_ip,
             'Source MAC': source_mac,
             'Dest Host': dest,
             'Dest IP': dest_ip,
             'Dest MAC': dest_mac,
-            'Message': message,
-            'Acknowledge': False
         }
+        
+        idx_socket = self.get_socket_index(connections, bridge_name)
+
+        if dest_ip in self.arp_tables:
+            dest_mac = self.arp_tables[dest_ip]
+            self.send_message(data_to_send, message, sockets_list[idx_socket])
+        else:
+            self.arp_request(data_to_send,message, sockets_list[idx_socket])
+
+
+
+    def send_message(self, data_to_send, msg, socket):
+        data_to_send['Type'] = 'IP Packet'
+        data_to_send['Message'] = msg
 
         json_data = json.dumps(data_to_send)
 
-        idx_socket = self.get_socket_index(connections, bridge_name)
 
         try:
-            sockets_list[idx_socket].send(json_data.encode('utf-8'))
+            socket.send(json_data.encode('utf-8'))
             print("Message sent.")
+
+        except socket.error as e:
+            print(f"Error sending data: {e}")
+
+    
+    def arp_request(self, data_to_send, msg, socket):
+        data_to_send['Type'] = 'ARP Request Packet'
+        
+        json_data = json.dumps(data_to_send)
+
+
+        try:
+            socket.send(json_data.encode('utf-8'))
+            print("ARP Request sent.")
+            data_to_send['Message'] = msg
+            self.pending_queue.append(data_to_send)
 
         except socket.error as e:
             print(f"Error sending data: {e}")
@@ -205,13 +229,13 @@ class Lanhooks:
 
 
     def check_valid_in_queue(self):
-        for ip in self.pending_queue:
-            if ip in self.arp_tables:
-                return ip
+        for ip_packet in self.pending_queue:
+            if ip_packet['Dest IP'] in self.arp_tables:
+                return ip_packet
         return None
     
     def remove_from_queue(self,ip):
-        self.pending_queue = [q for q in self.pending_queue if q != ip]
+        self.pending_queue = [q for q in self.pending_queue if q['Dest IP'] != ip]
 
     def show_pending_queue(self):
         for ip in self.pending_queue:
