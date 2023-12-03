@@ -10,14 +10,17 @@ import argparse
 from utils.bridge_utils.bridge_init import Bridge
 from utils.bridge_utils.bridge_parser import Bridgeparser
 
-MAX_CONNECTIONS = 10
+
 PORT = r.randint(1000, 6000)
 INACTIVE_TIMEOUT = 60
 
 parser = argparse.ArgumentParser(description="Bridge file that takes input of the file name and creates sockets to listen to incoming connections")
 parser.add_argument("name", help="Enter Station name")
+parser.add_argument("connections", help="Enter number of ports ")
+
 args = parser.parse_args()
 station_name = args.name
+MAX_CONNECTIONS =  int(args.connections)
 # station_name = 'cs1'
 ip = '127.0.0.1'
 B = Bridgeparser()
@@ -50,15 +53,12 @@ def start_server():
 
     bridge.bridge_socket.bind((ip, PORT))
     bridge.bridge_socket.listen(5)
-    print(bridge.bridge_socket.getsockname())
     ip_addrr = bridge.bridge_socket.getsockname()[0]
-    print(ip_addrr)
     bridge.bridge_socket.setblocking(0)
 
-    print(f"Bridge Started Running on the:{PORT}, {ip_addrr}")
-    print(station_name)
+    print(f" Bridge {station_name} Started Running on the:{PORT}, {ip_addrr}, Max Ports availiable {MAX_CONNECTIONS}")
+   
 
-    print(bridge.getportmap())
     B.file_write(ip_addrr, PORT, str(station_name))
     bridge.promptdisplay()
     while not exit_signal.is_set():
@@ -83,10 +83,8 @@ def start_server():
                 elif sock == bridge.bridge_socket:
                     # New connection
                     client_socket, client_address = bridge.bridge_socket.accept()
-                    print(client_socket)
                     if len(bridge.port_mapping) < MAX_CONNECTIONS:
                         client_socket.send('accept'.encode())
-                        print(client_address[1], client_socket)
                         bridge.update_mapping(client_socket, int(client_address[1]))
                         print(f"Accepted connection from {client_address}")
                         bridge.active_ports.append(client_socket)
@@ -102,28 +100,39 @@ def start_server():
                 else:
                     # Existing client, handle data
                     try:
+                        print(f'in try ')
                         data = sock.recv(1024)
-                        json_data = data.decode('utf-8')
-                        data_received = json.loads(json_data)
-                        # checks for metadata string, always from station.
-                        if data_received['Message'] == 'metadata':
-                            source_ip = data_received['Source IP']
-                            source_mac = data_received['Source MAC']
-                            bridge.update_macaddress(sock, source_mac)
-                        else:
-                            print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
-                            bridge.handle_station_data(client_socket,json_data)
                         if not data:
-                            print(f"Closing connection with {bridge.port_mapping[sock]}")
+                            print(f"Station disconnected: {bridge.port_mapping[sock]}")
                             sock.close()
                             bridge.active_ports.remove(sock)
                             del bridge.port_mapping[sock]
-                        
-                    except Exception as e:
-                        print(f"Error handling client {bridge.port_mapping[sock]}: {str(e)}")
+                        else:
+                            json_data = data.decode('utf-8')
+                            data_received = json.loads(json_data)
+                            # checks for metadata string, always from the station.
+                            print(data_received)
+                            if data_received['Type'] == 'metadata':
+                                source_ip = data_received['Source IP']
+                                source_mac = data_received['Source MAC']
+                                bridge.update_macaddress(sock, source_mac)
+                            else:
+                                print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
+                                bridge.handle_station_data(client_socket, data_received)
+
+                    except ConnectionResetError:
+                        print(f"Station intentionally disconnected: {bridge.port_mapping[sock]}")
                         sock.close()
                         bridge.active_ports.remove(sock)
                         del bridge.port_mapping[sock]
+
+                    # except Exception as e:
+                    #     print(f'Json Dump{data_received}')
+                    #     print(f"Error handling client {bridge.port_mapping[sock]}: {str(e)}")
+                    #     print(f"Station disconnected: {bridge.port_mapping[sock]}")
+                    #     sock.close()
+                    #     bridge.active_ports.remove(sock)
+                    #     del bridge.port_mapping[sock]
         except BlockingIOError:
             continue
 

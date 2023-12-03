@@ -2,8 +2,13 @@
 from utils.station_utils.station_parser import  Stationparser,Interfaces
 from utils.station_utils.lan_hooks import Lanhooks
 import threading
-
+import argparse
 lhooks = Lanhooks()
+
+
+
+
+
 def station(interface_file: str, host_file: str, rt_file: str)-> None:
     '''
     Parameters for station are the file names with the data for interfacee, routingtable, and hostname
@@ -29,13 +34,20 @@ def station(interface_file: str, host_file: str, rt_file: str)-> None:
    # thread.start()
     
 
+def getarguments():
+    parser = argparse.ArgumentParser(description='Description of your program')
+    parser.add_argument('router', type=str, help='Router argument')
+    parser.add_argument('interface', type=str, help='Interface argument')
+    parser.add_argument('routingtable', type=str, help='Routing table argument')
+    parser.add_argument('hostname', type=str, help='Hostname argument')
 
-
+    args = parser.parse_args()
+    return args.router, args.interface, args.routingtable, args.hostname
 if __name__ == '__main__':
     import os
-
-    interface_file = os.path.abspath('./project/ifaces/ifaces.a')
-    routingtable_file = os.path.abspath('./project/rtables/rtable.a')
-    host_file = os.path.abspath('./project/hosts')
+    router,interface,routingtable,hostname = getarguments()
+    interface_file = os.path.abspath(interface)
+    routingtable_file = os.path.abspath(routingtable)
+    host_file = os.path.abspath(hostname)
     # sparser = Stationparser(interface_file,routingtable_file,host_file)
     station(interface_file, host_file, routingtable_file)

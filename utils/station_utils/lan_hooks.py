@@ -9,7 +9,7 @@ import time
 import json
 import select
 import sys
-import pandas as pd
+
 
 B = Bridgeparser()
 ifaceparser = Interfaceparser()
@@ -23,33 +23,41 @@ class Lanhooks:
         self.pending_queue = []
     
    
-    def connect_to_bridge(self,ip_address, port, interface):
+    def connect_to_bridge(self, ip_address, port, interface):
         try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-                print('------Connecting to server----')
-                s.connect((ip_address, port))
-                for attempt in range(5):
-                    readable, _, _ = select.select([s], [], [], 1)  # Check for readability with 1s timeout
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            print('------Connecting to server----')
+            sys.stdout.flush()  # Flush the buffer to ensure immediate display
+            s.connect((ip_address, port))
+            attempts = 0
+            while attempts < 5:
+                print(f'Trying to connect, Tries {attempts}')
+                sys.stdout.flush()  # Flush the buffer to ensure immediate display
+                readable, _, _ = select.select([s], [], [], 1)  # Check for readability with 1s timeout
 
-                    if s in readable:
-                        print('-----Waiting for response-----')
-                        response = s.recv(1024).decode()
-                        
-                        if response == 'accept':
-                            print('-----Connection accepted-----')
-                            
-                            print('-----Sending Metadata-----')
-                            self.metadata(interface,s)
+                if s in readable:
+                    print('-----Waiting for response-----')
+                    sys.stdout.flush()  # Flush the buffer to ensure immediate display
+                    response = s.recv(1024).decode()
 
-                            # Add ARP entry to the ARP table for the LAN
-                            if interface['IP Address'] not in self.arp_tables:
-                                self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
-        
-                            return response, s
-                    
-                    time.sleep(2)
-                s.close()
-                return 'reject'
+                    if response == 'accept':
+                        print('-----Connection accepted-----')
+                        sys.stdout.flush()  # Flush the buffer to ensure immediate display
+
+                        print('-----Sending Metadata-----')
+                        sys.stdout.flush()  # Flush the buffer to ensure immediate display
+                        self.metadata(interface, s)
+
+                        # Add ARP entry to the ARP table for the LAN
+                        if interface['IP Address'] not in self.arp_tables:
+                            self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
+
+                        return response, s
+
+                time.sleep(2)
+                attempts += 1
+            s.close()
+            return None
 
         except socket.error as e:
             print(f"Error connecting to {ip_address}:{port}: {e}")
@@ -91,107 +99,132 @@ class Lanhooks:
 
         self.handle_arp(connections, interfaces, hosts, rt_table)
  
+    def handle_bridge_disconnection(self, disconnected_socket, connections):
+        disconnected_bridge = None
+        for connection in connections:
+            if connection['Socket'] == disconnected_socket:
+                disconnected_bridge = connection['Bridge']
+                break
+
+        if disconnected_bridge:
+            print(f"Bridge {disconnected_bridge.name} at {disconnected_bridge.ip_address}:{disconnected_bridge.port} disconnected.")
+            connections = [c for c in connections if c['Socket'] != disconnected_socket]
+            self.update_arp_table_on_disconnection(disconnected_bridge)
 
     def handle_arp(self,connections,interfaces,hosts, rt_table, is_router=False):
-        sockets_list = [connection['Socket'] for connection in connections]
-        
-        should_listen = True
-        prompt_displayed = False
+        try:
+            sockets_list = [connection['Socket'] for connection in connections]
+            
+            should_listen = True
+            prompt_displayed = False
 
-        while should_listen:
-            self.handle_arp_timeout()
-            # Use select to wait for events on the sockets
-            readable, _, _ = select.select(sockets_list + [sys.stdin], [], [], .1)
+            while should_listen:
+                self.handle_arp_timeout()
+                # Use select to wait for events on the sockets
+                readable, _, _ = select.select(sockets_list + [sys.stdin], [], [], .1)
 
-            # Print the default message prompt
-            if not prompt_displayed:
-                sys.stdout.write('''
-            Station Supported Commands -
-            send <destination> <message> // send message to a destination host
-            show arp 		// show the ARP cache table information
-            show pq 		// show the pending_queue
-            show host 		// show the IP/name mapping table
-            show iface 		// show the interface information
-            show rtable 		// show the contents of routing table
-            quit // close the station
-                ''')
-                sys.stdout.write(">> ")
-                sys.stdout.flush()  # Flush to ensure the message is immediately displayed
-                prompt_displayed = True
+                # Print the default message prompt
+                if not prompt_displayed:
+                    sys.stdout.write('''
+                Station Supported Commands -
+                send <destination> <message> // send message to a destination host
+                show arp 		// show the ARP cache table information
+                show pq 		// show the pending_queue
+                show host 		// show the IP/name mapping table
+                show iface 		// show the interface information
+                show rtable 		// show the contents of routing table
+                quit // close the station
+                    ''')
+                    sys.stdout.write(">> ")
+                    sys.stdout.flush()  # Flush to ensure the message is immediately displayed
+                    prompt_displayed = True
 
-            for sock in readable:
-                user_input = ''
-                if sock == sys.stdin:
-                    user_input = sys.stdin.readline().strip()
-                    prompt_displayed = False
+                for sock in readable:
+                    user_input = ''
+                    if sock == sys.stdin:
+                        user_input = sys.stdin.readline().strip()
+                        prompt_displayed = False
 
-                    if user_input == 'show arp':
-                        show_arp_table(self.arp_tables)
-                    elif user_input == 'show pq':
-                        self.show_pending_queue()
-                    elif user_input == 'show host':
-                        print(H.show_hosts(hosts))
-                    elif user_input == 'show iface':
-                        ifaceparser.show_ifaces(interfaces)
-                    elif user_input == 'show rtable':
-                        R.show_routing_table(rt_table)
-                    elif user_input == 'quit':
-                        for s in sockets_list:
-                            s.close()
-                        
-                        should_listen = False
-                    elif user_input[:4] == 'send' and not is_router and len(user_input.split(' ')) >= 3:
-                        dest = user_input.split(' ')[1]
-                        message = user_input[6 + len(dest):]
-                        self.send_to_host(dest,message,hosts, rt_table, interfaces, sockets_list, connections)
-
-                else:
-                    json_data = sock.recv(1024)
-                    data = json.loads(json_data)
-
-                    if not data:
-                        # Connection closed by bridge
-                        print(f"Connection closed by {sock.getpeername()}")
-                        sockets_list = [s for s in sockets_list if s != sock]
-                        sock.close()
-                    else:
-                        # Process the received data
-                        if data['Type'] == 'ARP Request Packet':
-                            # If station has ip and mac address mapping in own arp table sends this info back to station requesting mac
-                            if data['Dest IP'] in self.arp_tables:
-                                data['Dest MAC'] = self.arp_tables['Dest IP'].mac_address
-                                data['Type'] = 'ARP Reply Packet'
-                                sock.send(json.dumps(data).encode('utf-8'))
-
-                            # If dont have source ip and mac mapping in station arp adds it
-                            if data['Source IP'] not in self.arp_tables:
-                                self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
-                            else: # if already exists in arp table updates last seen time
-                                self.arp_tables[data['Source IP']].update_last_seen()
-
-                        elif data['Type'] == 'ARP Reply Packet':
-                            # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
-                            if data['Dest IP'] not in self.arp_tables:
-                                self.arp_tables['Dest IP'] = ARPEntry(data['Dest Host'], data['Dest MAC'], time.time())
-                            else: # if already exists in arp table updates last seen time
-                                self.arp_tables[data['Source IP']].update_last_seen()
+                        if user_input == 'show arp':
+                            show_arp_table(self.arp_tables)
+                        elif user_input == 'show pq':
+                            self.show_pending_queue()
+                        elif user_input == 'show host':
+                            print(H.show_hosts(hosts))
+                        elif user_input == 'show iface':
+                            ifaceparser.show_ifaces(interfaces)
+                        elif user_input == 'show rtable':
+                            R.show_routing_table(rt_table)
+                        elif user_input == 'quit':
+                            for s in sockets_list:
+                                s.close()
                             
-                            # Since we have arp reply should have packet in queue to be sent
-                            packet_to_send = self.check_valid_in_queue()
-                            if packet_to_send:
-                                self.send_message(packet_to_send, packet_to_send['Message'], sock)
-                                self.remove_from_queue(packet_to_send['Dest IP']) # Once queue message is sent remove from queue
+                            should_listen = False
+                        elif user_input[:4] == 'send' and not is_router and len(user_input.split(' ')) >= 3:
+                            dest = user_input.split(' ')[1]
+                            message = user_input[6 + len(dest):]
+                            self.send_to_host(dest,message,hosts, rt_table, interfaces, sockets_list, connections)
 
-                        elif data['Type'] == 'IP Packet':
-                            print(f"Message received from host {data['Source Host']}: {data['Message']}")
-                            # If dont have source ip and mac mapping in station arp adds it
-                            if data['Source IP'] not in self.arp_tables:
-                                self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
-                            else: # if already exists in arp table updates last seen time
-                                self.arp_tables[data['Source IP']].update_last_seen()
+                    else:
+                        json_data = sock.recv(1024)
+                        try:
+                            data = json.loads(json_data)
+                        except json.decoder.JSONDecodeError as e:
+                            should_listen =  False
+                            print(f"Connection closed by {sock.getpeername()}")
+                            continue  # Skip processing invalid JSON data
 
+                        data = json.loads(json_data)
+
+                        if not data:
+                            # Connection closed by bridge
+                            print(f"Connection closed by {sock.getpeername()}")
+                            should_listen =  False
+                            self.handle_bridge_disconnection(sock, connections)
+                            sockets_list = [s for s in sockets_list if s != sock]
+                            sock.close()
                         else:
-                            print('Invalid Packet Received')
+                            # Process the received data
+                            if data['Type'] == 'ARP Request Packet':
+                                # If station has ip and mac address mapping in own arp table sends this info back to station requesting mac
+                                if data['Dest IP'] in self.arp_tables:
+                                    data['Dest MAC'] = self.arp_tables['Dest IP'].mac_address
+                                    data['Type'] = 'ARP Reply Packet'
+                                    sock.send(json.dumps(data).encode('utf-8'))
+
+                                # If dont have source ip and mac mapping in station arp adds it
+                                if data['Source IP'] not in self.arp_tables:
+                                    self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
+                                else: # if already exists in arp table updates last seen time
+                                    self.arp_tables[data['Source IP']].update_last_seen()
+
+                            elif data['Type'] == 'ARP Reply Packet':
+                                # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
+                                if data['Dest IP'] not in self.arp_tables:
+                                    self.arp_tables['Dest IP'] = ARPEntry(data['Dest Host'], data['Dest MAC'], time.time())
+                                else: # if already exists in arp table updates last seen time
+                                    self.arp_tables[data['Source IP']].update_last_seen()
+                                
+                                # Since we have arp reply should have packet in queue to be sent
+                                packet_to_send = self.check_valid_in_queue()
+                                if packet_to_send:
+                                    self.send_message(packet_to_send, packet_to_send['Message'], sock)
+                                    self.remove_from_queue(packet_to_send['Dest IP']) # Once queue message is sent remove from queue
+
+                            elif data['Type'] == 'IP Packet':
+                                print(f"Message received from host {data['Source Host']}: {data['Message']}")
+                                # If dont have source ip and mac mapping in station arp adds it
+                                if data['Source IP'] not in self.arp_tables:
+                                    self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
+                                else: # if already exists in arp table updates last seen time
+                                    self.arp_tables[data['Source IP']].update_last_seen()
+
+                            else:
+                                print('Invalid Packet Received')
+        except KeyboardInterrupt:
+            print("\nKeyboardInterrupt received. Cleaning up and exiting...")
+            self.cleanup_on_exit(connections)
+            sys.exit()
 
 
     def send_to_host(self, dest, message, hosts, rt_table, interfaces, sockets_list, connections):
@@ -269,7 +302,8 @@ class Lanhooks:
             'Dest Host': None,
             'Dest IP': None,
             'Dest MAC': None,
-            'Message': 'metadata',
+            'Type': 'metadata',
+            'Message': None,
             'Acknowledge': False
         }
         json_data = json.dumps(data_to_send)
@@ -302,6 +336,11 @@ class Lanhooks:
         for ip in self.arp_tables:
             if self.arp_tables[ip].last_seen - time.time() > 60:
                 self.arp_tables.pop(ip)
+    
+    def cleanup_on_exit(self, connections):
+        # Close all open sockets
+        for connection in connections:
+            connection['Socket'].close()
 
 
 

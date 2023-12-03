@@ -5,20 +5,26 @@ import ipaddress
 
 
 
+import ipaddress
+
 def is_ip_in_range(ip_str, subnet_mask_str, ip_to_check):
+    # Convert the IP address and subnet mask strings to IPv4Address and IPv4Network objects
     ip = ipaddress.IPv4Address(ip_str)
-    subnet_mask = ipaddress.IPv4Address(subnet_mask_str)
+    subnet_network = ipaddress.IPv4Network(subnet_mask_str, strict=False)
 
     # Calculate the network address
-    network_address = ip & subnet_mask
+    network_address = ipaddress.IPv4Address(subnet_network.network_address)
 
     # Calculate the first and last usable IP addresses
-    start_ip = network_address
-    end_ip = network_address + (2 ** (32 - subnet_mask.prefixlen)) - 2
+    start_ip = network_address + 1  # Skip the network address itself
+    end_ip = network_address + (2 ** (32 - subnet_network.prefixlen)) - 2
 
+    # Convert the IP address to check to an IPv4Address object
     ip_to_check_ipv4 = ipaddress.IPv4Address(ip_to_check)
 
+    # Check if the IP to check falls within the calculated range
     return start_ip <= ip_to_check_ipv4 <= end_ip
+
 
 
 def ip_to_int(ip):
@@ -163,13 +169,19 @@ class Routingparser(Stationparser):
             if route.dest_network == '0.0.0.0':
                 return route.network_interface
         return None
-
     
+    def is_ip_in_range(self,start_ip, netmask,ip):
+        try:
+            ip_network = ipaddress.IPv4Network(f"{start_ip}/{netmask}", strict=False)
+            return ipaddress.IPv4Address(ip) in ip_network
+        except ValueError:
+            return False 
+        
     def get_next_hop_interface(self, dest_ip, routes):
         for route in routes:
             # if route.dest_network == dest_ip:
             #     return route.network_interface
-            if is_ip_in_range(route.dest_network, route.network_mask, dest_ip):
+            if self.is_ip_in_range(route.dest_network, route.network_mask, dest_ip):
                 return route.network_interface
         return self.default_ip_gateway_next_hop_interface(routes)
 

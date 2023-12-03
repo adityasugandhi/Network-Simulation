@@ -10,29 +10,30 @@ class ARPEntry:
         self.mac_address = mac_address
         self.last_seen = entry_time
         self.timeout = 60
+    def update_last_seen(self):
+     self.last_seen = time.time()
 
 
 
 def show_arp_table(arp_table: dict[ARPEntry])-> None:
-        ips = []
-        mac_addresses = []
-        last_seen_times = []
+            ips = []
+            mac_addresses = []
+            last_seen_times = []
 
-        for ip in arp_table:
-            ips.append([ip])
-            mac_addresses.append(arp_table[ip].mac_address)
-            last_seen_times.append(time.time() - arp_table[ip].last_seen)
+            for ip in arp_table:
+                ips.append([ip])
+                mac_addresses.append(arp_table[ip].mac_address)
+                last_seen_times.append(time.time() - arp_table[ip].last_seen)
 
-        arp_df = pd.DataFrame({
-            'IP Address': ip,
-            'Mac Addresses': mac_addresses,
-            'Last Seen Time': last_seen_times
-        })
+            arp_df = pd.DataFrame({
+                'IP Address': ip,
+                'Mac Addresses': mac_addresses,
+                'Last Seen Time': last_seen_times
+            })
 
-        print('ARP Table:')
-        print(arp_df)
+            print('ARP Table:')
+            print(arp_df)
 
 
-def update_last_seen(self):
-     self.last_seen = time.time()
+    
 

@@ -40,12 +40,14 @@ class Bridge:
 
     def getsockaddr(self, target_mac):
         for source_address, info in self.port_mapping.items():
+            print(f' checking is targetmac is in port_mapping {info["mac_address"]}, {target_mac}')
             if info['mac_address'] == target_mac:
                 return source_address
         return None
 
     def fwdclient(self,socket_address,data):
-        data = data.encode()
+        data = json.dumps(data)
+        data = data.encode('utf-8')
         socket_address.send(data)
         print(f'data succesfully sent to {self.port_mapping[socket_address]}')
 
@@ -53,44 +55,44 @@ class Bridge:
         self.exit_signal.set()
 
     def send_to_all(self, data):
+        data = json.dumps(data)
         print("sending to everyone", data)
         for client_socket, info in self.port_mapping.items():
-            try:
+            
                 client_socket.settimeout(1)
                 client_socket.send(data.encode('utf-8'))
                 acknowledgment = client_socket.recv(1024).decode('utf-8')
 
                 if acknowledgment == 'Acknowledge':
-                    print(f'Acknowledge received from {info["source_address"]}')
-                    self.update_mapping(info["source_address"], info["in_port"])
+                    print(f'Acknowledge received from {client_socket}')
+                    self.update_mapping(client_socket, client_socket.getpeername()[1])
                 else:
-                    print(f'Acknowledge not received from {info["source_address"]}')
-            except Exception as e:
-                print(f'Error sending/receiving data to/from {info["source_address"]}: {e}')
+                    print(f'Acknowledge not received from {client_socket}')
+            # except Exception as e:
+            #     print(f'Error sending/receiving data to/from {client_socket}: {e}')
 
     def handle_station_data(self,client_socket,data):
         client_port = self.port_mapping[client_socket]
         print('here')
-        return
-        
         if client_socket in self.port_mapping:
             # print(client_socket)
             # client_socket.send(b'data_received')
             # print('data-send')
             
             if data is not None:
-                received_data = json.loads(data.decode('utf-8'))
-                print(received_data)
+                received_data = data
+                
                 # Extract or map variables
                 in_port = client_socket.getpeername()[1]
-                source_name = received_data['Source Name']
-                source_ip = received_data['Source IP']
-                source_mac = received_data['Source MAC']
-                dest_host = received_data['Dest Host']
-                dest_ip = received_data['Dest IP']
-                dest_mac = received_data['Dest MAC']
-                message = received_data['Message']
-                flag = received_data['Acknowledgement']
+                #source_name = received_data['Source Host']
+                source_ip = received_data.get('Source IP', None)
+                source_mac = received_data.get('Source MAC', None)
+                dest_host = received_data.get('Dest Host', None)
+                dest_ip = received_data.get('Dest IP', None)
+                dest_mac = received_data.get('Dest MAC', None)
+
+                message = received_data.get('Message', None)
+                flag = received_data.get('Acknowledgement', None)
                 print(data)
                 print(source_mac,dest_mac)
                 if source_mac is None and dest_mac is None:
