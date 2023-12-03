@@ -40,7 +40,7 @@ class Bridge:
 
     def getsockaddr(self, target_mac):
         for source_address, info in self.port_mapping.items():
-            print(f' checking is targetmac is in port_mapping {info["mac_address"]}, {target_mac}')
+            print(f' checking is targetmac is in port_mapping {info["mac_address"]}, {target_mac},{self.port_mapping}')
             if info['mac_address'] == target_mac:
                 return source_address
         return None
@@ -54,11 +54,16 @@ class Bridge:
     def shutdown_threads(self):
         self.exit_signal.set()
 
-    def send_to_all(self, data):
+    def send_to_all(self, data, received_from_socket=None):
         data = json.dumps(data)
         print("sending to everyone", data)
+        
         for client_socket, info in self.port_mapping.items():
-            
+            if client_socket == received_from_socket:
+                # Skip sending data to the socket from which it was received
+                continue
+
+            try:
                 client_socket.settimeout(1)
                 client_socket.send(data.encode('utf-8'))
                 acknowledgment = client_socket.recv(1024).decode('utf-8')
@@ -68,8 +73,9 @@ class Bridge:
                     self.update_mapping(client_socket, client_socket.getpeername()[1])
                 else:
                     print(f'Acknowledge not received from {client_socket}')
-            # except Exception as e:
-            #     print(f'Error sending/receiving data to/from {client_socket}: {e}')
+            except Exception as e:
+                print(f'Error sending/receiving data to/from {client_socket}: {e}')
+
 
     def handle_station_data(self,client_socket,data):
         client_port = self.port_mapping[client_socket]
@@ -96,7 +102,7 @@ class Bridge:
                 print(data)
                 print(source_mac,dest_mac)
                 if source_mac is None and dest_mac is None:
-                    self.send_to_all(data)  
+                    self.send_to_all(data, received_from_socket=client_socket) 
                 
                 self.update_mapping(client_socket,in_port)
                 # updates the macddress in learning table
