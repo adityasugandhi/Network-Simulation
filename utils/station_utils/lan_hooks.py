@@ -167,14 +167,14 @@ class Lanhooks:
 
                     else:
                         json_data = sock.recv(1024)
-                        try:
+                        print(f"Data received. from {sock.getpeername()}")
+                        # sock.send('Acknowledge'.encode('utf-8'))
+                        try: 
                             data = json.loads(json_data)
-                        except json.decoder.JSONDecodeError as e:
-                            should_listen =  False
-                            print(f"Connection closed by {sock.getpeername()}")
-                            continue  # Skip processing invalid JSON data
-
-                        data = json.loads(json_data)
+                            
+                        except json.decoder.JSONDecodeError as json_error:
+                             print(f'JSON decoding error: {json_error}')
+                        #data = json.loads(json_data)
 
                         if not data:
                             # Connection closed by bridge
@@ -186,13 +186,16 @@ class Lanhooks:
                         else:
                             # Process the received data
                             if data['Type'] == 'ARP Request Packet':
-                                # If station has ip and mac address mapping in own arp table sends this info back to station requesting mac
-                                if data['Dest IP'] in self.arp_tables:
-                                    data['Dest MAC'] = self.arp_tables['Dest IP'].mac_address
+    # If station has IP and MAC address mapping in own ARP table, send this info back to the station requesting MAC
+                                dest_ip = data['Dest IP']
+                                if dest_ip in self.arp_tables:
+                                    # Access the ARP entry for the destination IP and retrieve the MAC address
+                                    data['Dest MAC'] = self.arp_tables[dest_ip].mac_address
                                     data['Type'] = 'ARP Reply Packet'
+                                    
+                                    # Assuming 'sock' is a valid socket object
                                     sock.send(json.dumps(data).encode('utf-8'))
-
-                                # If dont have source ip and mac mapping in station arp adds it
+                                                            # If dont have source ip and mac mapping in station arp adds it
                                 if data['Source IP'] not in self.arp_tables:
                                     self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
                                 else: # if already exists in arp table updates last seen time
@@ -201,7 +204,7 @@ class Lanhooks:
                             elif data['Type'] == 'ARP Reply Packet':
                                 # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
                                 if data['Dest IP'] not in self.arp_tables:
-                                    self.arp_tables['Dest IP'] = ARPEntry(data['Dest Host'], data['Dest MAC'], time.time())
+                                    self.arp_tables[data['Dest IP']] = ARPEntry(data['Dest Host'], data['Dest MAC'], time.time())
                                 else: # if already exists in arp table updates last seen time
                                     self.arp_tables[data['Source IP']].update_last_seen()
                                 

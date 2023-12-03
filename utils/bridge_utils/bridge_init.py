@@ -54,27 +54,21 @@ class Bridge:
     def shutdown_threads(self):
         self.exit_signal.set()
 
-    def send_to_all(self, data, received_from_socket=None):
+    def send_to_all(self, data, received_from_socket):
         data = json.dumps(data)
-        print("sending to everyone", data)
+        print("sending to everyone")
         
         for client_socket, info in self.port_mapping.items():
-            if client_socket == received_from_socket:
+            if str(client_socket) != str(received_from_socket):
+                print(f"{client_socket}, {received_from_socket}")
                 # Skip sending data to the socket from which it was received
-                continue
-
-            try:
-                client_socket.settimeout(1)
-                client_socket.send(data.encode('utf-8'))
-                acknowledgment = client_socket.recv(1024).decode('utf-8')
-
-                if acknowledgment == 'Acknowledge':
-                    print(f'Acknowledge received from {client_socket}')
-                    self.update_mapping(client_socket, client_socket.getpeername()[1])
-                else:
-                    print(f'Acknowledge not received from {client_socket}')
-            except Exception as e:
-                print(f'Error sending/receiving data to/from {client_socket}: {e}')
+                try:
+                    client_socket.settimeout(1)
+                    client_socket.send(data.encode('utf-8'))
+                    print(f"Sent data to {client_socket}")
+                    # Add your acknowledgment and update_mapping logic here if needed
+                except Exception as e:
+                    print(f'Error sending/receiving data to/from {client_socket}: {e}')
 
 
     def handle_station_data(self,client_socket,data):
@@ -99,7 +93,6 @@ class Bridge:
 
                 message = received_data.get('Message', None)
                 flag = received_data.get('Acknowledgement', None)
-                print(data)
                 print(source_mac,dest_mac)
                 if source_mac is None and dest_mac is None:
                     self.send_to_all(data, received_from_socket=client_socket) 
@@ -110,10 +103,11 @@ class Bridge:
                 
                 # if the dest_mac is in self-learning table then we fwd to the client
                 if self.getsockaddr(dest_mac):
+                    print(f'station found sending data to the client{dest_mac}{self.getsockaddr(dest_mac)}')
                     self.fwdclient(client_socket,data)
                 else: 
                     print('station not found sending data to all the connections')
-                    self.send_to_all(data)
+                    self.send_to_all(data,received_from_socket=client_socket)
 
                 if not data:
                     # Connection closed by the client
@@ -166,5 +160,8 @@ class Bridge:
             else:
                 time.sleep(10)
                 continue
+    def cheeek(self):
+        print(self.port_mapping)
+        
 #
 #This code defines a `Bridge` class that manages connections between different stations. It includes methods for updating the port mapping, handling station data, checking connection status, and sending data to all connected stations. The code also includes proper commenting to explain the purpose of each method and its functionality.

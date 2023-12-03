@@ -73,8 +73,11 @@ def start_server():
                     if user_input == 'show sl':
                         bridge.show_port_mapping()
                     elif user_input == 'quit':
+
                         exit_signal.set()
                         break
+                    elif user_input == 'check':
+                        bridge.cheeek()
                     else:
                         bridge.promptdisplay()
 

@@ -23,6 +23,7 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
             for ip in arp_table:
                 ips.append([ip])
                 mac_addresses.append(arp_table[ip].mac_address)
+                
                 last_seen_times.append(time.time() - arp_table[ip].last_seen)
 
             arp_df = pd.DataFrame({
@@ -32,6 +33,7 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
             })
 
             print('ARP Table:')
+            
             print(arp_df)
 
 
