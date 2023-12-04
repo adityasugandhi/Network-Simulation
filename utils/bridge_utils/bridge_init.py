@@ -50,6 +50,7 @@ class Bridge:
     def fwdclient(self,socket_address,data):
         data = json.dumps(data)
         data = data.encode('utf-8')
+        print(socket_address)
         socket_address.send(data)
         print(f'data succesfully sent to {self.port_mapping[socket_address]}')
 

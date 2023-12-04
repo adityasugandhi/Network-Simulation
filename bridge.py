@@ -118,7 +118,7 @@ def start_server():
                             if data_received['Type'] == 'metadata':
                                 source_ip = data_received['Source IP']
                                 source_mac = data_received['Source MAC']
-                                # bridge.update_macaddress(sock, source_mac)
+                                bridge.update_macaddress(sock, source_mac)
                             else:
                                 # print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
                                 # print(data_received)
