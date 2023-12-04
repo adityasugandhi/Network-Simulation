@@ -40,6 +40,8 @@ class Bridge:
 
     def getsockaddr(self, target_mac):
         for source_address, info in self.port_mapping.items():
+            # print(info)
+            # print(source_address)
             print(f' checking is targetmac is in port_mapping {info["mac_address"]}, {target_mac},{self.port_mapping}')
             if info['mac_address'] == target_mac:
                 return source_address
@@ -59,21 +61,25 @@ class Bridge:
         print("sending to everyone")
         
         for client_socket, info in self.port_mapping.items():
-            if str(client_socket) != str(received_from_socket):
-                print(f"{client_socket}, {received_from_socket}")
+            # if str(client_socket) != str(received_from_socket):
+            # if client_socket is not received_from_socket:
+                # print(info)
+                # print('in')
+                # print(f"{client_socket}, {received_from_socket}")
                 # Skip sending data to the socket from which it was received
-                try:
-                    client_socket.settimeout(1)
-                    client_socket.send(data.encode('utf-8'))
-                    print(f"Sent data to {client_socket}")
-                    # Add your acknowledgment and update_mapping logic here if needed
-                except Exception as e:
-                    print(f'Error sending/receiving data to/from {client_socket}: {e}')
+            try:
+                client_socket.settimeout(1)
+                client_socket.send(data.encode('utf-8'))
+                # print(f"Sent data to {client_socket}")
+                # Add your acknowledgment and update_mapping logic here if needed
+            except Exception as e:
+                print(f'Error sending/receiving data to/from {client_socket}: {e}')
 
 
     def handle_station_data(self,client_socket,data):
+        # print(len(self.port_mapping.keys()))
         client_port = self.port_mapping[client_socket]
-        print('here')
+        # print('here')
         if client_socket in self.port_mapping:
             # print(client_socket)
             # client_socket.send(b'data_received')
@@ -93,21 +99,25 @@ class Bridge:
 
                 message = received_data.get('Message', None)
                 flag = received_data.get('Acknowledgement', None)
-                print(source_mac,dest_mac)
-                if source_mac is None and dest_mac is None:
-                    self.send_to_all(data, received_from_socket=client_socket) 
+                # print(source_mac,dest_mac)
+                # source_mac is None and
+                # if dest_mac is None:
+                #     self.send_to_all(data, received_from_socket=client_socket) 
                 
                 self.update_mapping(client_socket,in_port)
                 # updates the macddress in learning table
-                self.update_macaddress(client_socket,source_mac)
+                self.update_macaddress(client_socket,dest_mac)
+
+                print(dest_mac)
                 
                 # if the dest_mac is in self-learning table then we fwd to the client
-                if self.getsockaddr(dest_mac):
-                    print(f'station found sending data to the client{dest_mac}{self.getsockaddr(dest_mac)}')
-                    self.fwdclient(client_socket,data)
-                else: 
-                    print('station not found sending data to all the connections')
-                    self.send_to_all(data,received_from_socket=client_socket)
+                # if self.getsockaddr(dest_mac):
+                #     print(f'station found sending data to the client{dest_mac}{self.getsockaddr(dest_mac)}')
+                #     self.fwdclient(client_socket,data)
+                # else: 
+                #     print('station not found sending data to all the connections')
+                #     self.send_to_all(data,received_from_socket=client_socket)
+                self.send_to_all(data,received_from_socket=client_socket)
 
                 if not data:
                     # Connection closed by the client

@@ -114,13 +114,14 @@ def start_server():
                             json_data = data.decode('utf-8')
                             data_received = json.loads(json_data)
                             # checks for metadata string, always from the station.
-                            print(data_received)
+                            # print(data_received)
                             if data_received['Type'] == 'metadata':
                                 source_ip = data_received['Source IP']
                                 source_mac = data_received['Source MAC']
-                                bridge.update_macaddress(sock, source_mac)
+                                # bridge.update_macaddress(sock, source_mac)
                             else:
-                                print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
+                                # print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
+                                # print(data_received)
                                 bridge.handle_station_data(client_socket, data_received)
 
                     except ConnectionResetError:
