@@ -112,7 +112,7 @@ class Interfaceparser(Stationparser):
         output += "{:<10} {:<15} {:<15} {:<15} {:<10}\n".format("Name", "IP Address", 'Subnet Mask', 'Mac Address', 'Lan Name')
 
         for iface in interfaces:
-            output += "{:<1} {:<15} {:<15} {:<15} {:<10}\n".format(iface.name, iface.ip_address, iface.subnets, iface.macs, iface.lans)
+            output += "{:<1} {:<15} {:<15} {:<15} {:<10}\n".format(iface.name, iface.ip_address, iface.subnet_mask, iface.mac_address, iface.lan_name)
 
         return output
 
