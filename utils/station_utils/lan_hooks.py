@@ -50,7 +50,7 @@ class Lanhooks:
 
                         # Add ARP entry to the ARP table for the LAN
                         if interface['IP Address'] not in self.arp_tables:
-                            self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time())
+                            self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time(), True)
 
                         return response, s
 
@@ -197,6 +197,7 @@ class Lanhooks:
                         else:
                             if not router:
                                 # Process the received data
+                                print(data)
                                 if data['Type'] == 'ARP Request Packet':
         # If station has IP and MAC address mapping in own ARP table, send this info back to the station requesting MAC
                                     dest_ip = data['Dest IP']
@@ -206,12 +207,15 @@ class Lanhooks:
                                         data['Type'] = 'ARP Reply Packet'
 
                                         reply_data = data
-                                        orig_ip = data['Source IP']
-                                        orig_mac = data['Source MAC']
-                                        reply_data['Soure IP'] = reply_data['Dest IP']
-                                        reply_data['Soure MAC'] = reply_data['Dest MAC']
-                                        reply_data['Dest MAC'] = orig_mac
-                                        reply_data['Dest IP'] = orig_ip
+                                        # orig_ip = data['Source IP']
+                                        # orig_mac = data['Source MAC']
+                                        # orig_host = data['Source Host']
+                                        reply_data['Soure IP'] = data['Dest IP']
+                                        reply_data['Soure MAC'] = data['Dest MAC']
+                                        reply_data['Source Host'] = data['Dest Host']
+                                        reply_data['Dest MAC'] = data['Source MAC']
+                                        reply_data['Dest IP'] = data['Source IP']
+                                        reply_data['Dest Host'] = data['Source Host']
                                         
                                         # Assuming 'sock' is a valid socket object
                                         sock.send(json.dumps(reply_data).encode('utf-8'))
@@ -223,8 +227,8 @@ class Lanhooks:
 
                                 elif data['Type'] == 'ARP Reply Packet':
                                     # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
-                                    if data['Dest IP'] not in self.arp_tables:
-                                        self.arp_tables[data['Dest IP']] = ARPEntry(data['Dest Host'], data['Dest MAC'], time.time())
+                                    if data['Source IP'] not in self.arp_tables:
+                                        self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
                                     else: # if already exists in arp table updates last seen time
                                         self.arp_tables[data['Source IP']].update_last_seen()
                                     
@@ -364,9 +368,14 @@ class Lanhooks:
     
 
     def handle_arp_timeout(self):
+        keys_to_remove = []
         for ip in self.arp_tables:
-            if self.arp_tables[ip].last_seen - time.time() > 60:
-                self.arp_tables.pop(ip)
+            if  time.time() - self.arp_tables[ip].last_seen > 60 and not self.arp_tables[ip].default:
+                keys_to_remove.append(ip)
+
+        for ip in keys_to_remove:
+            self.arp_tables.pop(ip)
+
     
     def cleanup_on_exit(self, connections):
         # Close all open sockets

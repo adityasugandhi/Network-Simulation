@@ -4,11 +4,12 @@ import time
 
 
 class ARPEntry:
-    def __init__(self, lan_name, mac_address, entry_time):
+    def __init__(self, lan_name, mac_address, entry_time, default=False):
         self.lan_name = lan_name
         self.mac_address = mac_address
         self.last_seen = entry_time
         self.timeout = 60
+        self.default = default
     def update_last_seen(self):
      self.last_seen = time.time()
 
