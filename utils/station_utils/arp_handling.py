@@ -1,7 +1,6 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from utils.station_utils.station_parser import Stationparser
 import time
-import pandas as pd
 
 
 class ARPEntry:
@@ -21,20 +20,19 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
             last_seen_times = []
 
             for ip in arp_table:
-                ips.append([ip])
+                ips.append(ip)
                 mac_addresses.append(arp_table[ip].mac_address)
                 
                 last_seen_times.append(time.time() - arp_table[ip].last_seen)
 
-            arp_df = pd.DataFrame({
-                'IP Address': ip,
-                'Mac Addresses': mac_addresses,
-                'Last Seen Time': last_seen_times
-            })
+               
+            output = "ARP Table:\n"
+            output += "{:<15} {:<15} {:<15}\n".format("IP Addresses", "MAC Addresses", "Last Seen Time")
 
-            print('ARP Table:')
-            
-            print(arp_df)
+            for i in range(len(ips)):
+                output += "{:<15} {:<15} {:<15}\n".format(ips[i], mac_addresses[i], last_seen_times[i])
+
+            return output
 
 
     

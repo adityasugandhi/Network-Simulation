@@ -1,6 +1,5 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from ..settings import interface_file, routingtable_file, host_file
-import pandas as pd
 import ipaddress
 
 
@@ -109,16 +108,24 @@ class Interfaceparser(Stationparser):
             macs.append(iface.mac_address)
             lans.append(iface.lan_name)
 
-        ifaces_df = pd.DataFrame({
-            'Name': names,
-            'IP Address': ips,
-            'Subnet Mask': subnets,
-            'Mac Address': macs,
-            'Lan Name': lans 
-        })
+        output = 'Interfaces Table'
+        output += "{:<10} {:<15} {:<15} {:<15} {:<10}\n".format("Name", "IP Address", 'Subnet Mask', 'Mac Address', 'Lan Name')
 
-        print('Interface Table:')
-        print(ifaces_df)
+        for iface in interfaces:
+            output += "{:<1} {:<15} {:<15} {:<15} {:<10}\n".format(iface.name, iface.ip_address, iface.subnets, iface.macs, iface.lans)
+
+        return output
+
+        # ifaces_df = pd.DataFrame({
+        #     'Name': names,
+        #     'IP Address': ips,
+        #     'Subnet Mask': subnets,
+        #     'Mac Address': macs,
+        #     'Lan Name': lans 
+        # })
+
+        # print('Interface Table:')
+        # print(ifaces_df)
 
     def bridge_forwarding_info(self, interfaces, forwarding_interface):
         for iface in interfaces:
@@ -159,10 +166,18 @@ class Routingparser(Stationparser):
         return routing_table
     
     def show_routing_table(self, routing_table):
-        print('Routing Table:')
-        print('Destination Network \t Next Hop IP \t Network Mask \t Network Interface')
+        # print('Routing Table:')
+        # print('Destination Network \t Next Hop IP \t Network Mask \t Network Interface')
+        # for tb in routing_table:
+        #     print(f'{tb.dest_network} \t {tb.next_hop_ip} \t {tb.network_mask} \t {tb.network_interface}')
+
+        output = 'Routing Table'
+        output += "{:<15} {:<15} {:<15} {:<15}\n".format("Destination Network", "Next Hop IP", 'Network Mask', 'Network Interface')
+
         for tb in routing_table:
-            print(f'{tb.dest_network} \t {tb.next_hop_ip} \t {tb.network_mask} \t {tb.network_interface}')
+            output += "{:<15} {:<15} {:<15} {:<15}\n".format(tb.dest_network, tb.next_hop_ip, tb.network_mask, tb.network_interface)
+
+        return output
 
     def default_ip_gateway_next_hop_interface(self,routes):
         for route in routes:
