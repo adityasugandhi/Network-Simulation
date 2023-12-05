@@ -166,7 +166,7 @@ class Lanhooks:
                         prompt_displayed = False
 
                         if user_input == 'show arp':
-                            print(show_arp_table(self.arp_tables))
+                            print(show_arp_table(self.arp_tables,defaultips=self.getdefault_ips()))
                         elif user_input == 'show pq':
                             print(self.show_pending_queue())
                         elif user_input == 'show host':

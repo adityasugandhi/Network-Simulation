@@ -17,7 +17,7 @@ class ARPEntry:
 
 
 
-def show_arp_table(arp_table: dict[ARPEntry])-> None:
+def show_arp_table(arp_table: dict[ARPEntry],defaultips)-> None:
             ips = []
             mac_addresses = []
             last_seen_times = []
@@ -26,8 +26,11 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
                 ips.append(ip)
                 mac_addresses.append(arp_table[ip].mac_address)
                 
-                last_seen_times.append(time.time() - arp_table[ip].last_seen)
-
+                
+                if ip in defaultips:
+                    last_seen_times.append('default')
+                else:
+                    last_seen_times.append(time.time() - arp_table[ip].last_seen)
                
             output = "ARP Table:\n"
             output += "{:<15} {:<15} {:<15}\n".format("IP Addresses", "MAC Addresses", "Last Seen Time")
