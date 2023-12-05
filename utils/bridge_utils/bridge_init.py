@@ -74,18 +74,18 @@ class Bridge:
         
         for client_socket, info in self.port_mapping.items():
             # if str(client_socket) != str(received_from_socket):
-            if client_socket is not received_from_socket:
+            if client_socket != received_from_socket:
                 print(info)
                 print('in')
                 print(f"{client_socket}, {received_from_socket}")
                 # Skip sending data to the socket from which it was received
-            try:
-                client_socket.settimeout(1)
-                client_socket.send(data.encode('utf-8'))
-                # print(f"Sent data to {client_socket}")
-                # Add your acknowledgment and update_mapping logic here if needed
-            except Exception as e:
-                print(f'Error sending/receiving data to/from {client_socket}: {e}')
+                try:
+                    # client_socket.settimeout(1)
+                    client_socket.send(data.encode('utf-8'))
+                    # print(f"Sent data to {client_socket}")
+                    # Add your acknowledgment and update_mapping logic here if needed
+                except Exception as e:
+                    print(f'Error sending/receiving data to/from {client_socket}: {e}')
 
 
     def handle_station_data(self,client_socket,data):
@@ -137,7 +137,7 @@ class Bridge:
                     self.update_macaddress(client_socket,source_mac)
                     # print(self.port_mapping)
                 else:
-                    print('source_mac is none')
+                    print('source_mac is not none')
                 print('-------------------------------------')
                 print(f'source mac - {source_mac}  destination-mac {dest_mac}, self.port_mapping')
                 print('-------------------------------------')

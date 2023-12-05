@@ -113,8 +113,19 @@ def start_server():
                             bridge.active_ports.remove(sock)
                             del bridge.port_mapping[sock]
                         else:
+                            
                             json_data = data.decode('utf-8')
-                            data_received = json.loads(json_data)
+                            try:
+                                data_received = json.loads(json_data)
+                             
+                            
+                            except json.decoder.JSONDecodeError as json_error:
+                                error_position = json_error.pos
+                                start_position = max(0, error_position - 10)  # Adjust the range as needed
+                                end_position = min(len(json_data), error_position + 10)  # Adjust the range as needed
+                                problematic_data = json_data[start_position:end_position]
+                                print(f"Problematic data: {problematic_data}")
+                            
                             # checks for metadata string, always from the station.
                             # print(data_received)
                             if data_received['Type'] == 'metadata':

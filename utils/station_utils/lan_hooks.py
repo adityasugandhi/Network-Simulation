@@ -180,13 +180,18 @@ class Lanhooks:
 
                     else:
                         json_data = sock.recv(1024)
+                        print(f'-------------{type(json_data)}-----------')
                         print(f"Data received. from {sock.getpeername()}")
                         # sock.send('Acknowledge'.encode('utf-8'))
                         try: 
                             data = json.loads(json_data)
                             
                         except json.decoder.JSONDecodeError as json_error:
-                             print(f'JSON decoding error: {json_error}')
+                            error_position = json_error.pos
+                            start_position = max(0, error_position - 10)  # Adjust the range as needed
+                            end_position = min(len(json_data), error_position + 10)  # Adjust the range as needed
+                            problematic_data = json_data[start_position:end_position]
+                            print(f"Problematic data: {problematic_data}")
                         #data = json.loads(json_data)
 
                         if not data:
@@ -236,6 +241,7 @@ class Lanhooks:
                                     # print('here')
                                     # print(data)
                                     # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
+                                    
                                     if data['Source IP'] not in self.arp_tables:
                                         self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
                                     else: # if already exists in arp table updates last seen time
@@ -243,7 +249,7 @@ class Lanhooks:
                                     
                                     # Since we have arp reply should have packet in queue to be sent
                                     packet_to_send = self.check_valid_in_queue()
-
+                                    print('----------')
                                     if packet_to_send:
                                         packet_to_send['Dest MAC'] = data['Source MAC']
                                         # self.send_to_host(packet_to_send['Dest IP'],packet_to_send['Message'],hosts, rt_table, interfaces, sockets_list, connections)
@@ -261,11 +267,22 @@ class Lanhooks:
                                 else:
                                     print('Invalid Packet Received')
                             else:
-                                self.send_to_host(data['Dest IP'],data['Message'],hosts, rt_table, interfaces, sockets_list, connections)
-                                if data['Source IP'] not in self.arp_tables:
-                                    self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
-                                else: # if already exists in arp table updates last seen time
-                                    self.arp_tables[data['Source IP']].update_last_seen()
+                                # if data['Type'] == 'ARP Reply Packet' or data['Type'] == 'ARP Request Packet':
+                                    # print('here')
+                                    # print(data)
+                                    # If dont have dest ip and mac mapping in station arp adds it which it shouldn't because ideally would get this reply after sending request for it
+                                    # if data['Source IP'] not in self.arp_tables:
+                                    #     self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
+                                    # else: # if already exists in arp table updates last seen time
+                                    #     self.arp_tables[data['Source IP']].update_last_seen()
+                                    
+                                    message = data.get('Message', None)
+                                    source_host  = data.get('Source Host', None)
+                                    self.send_to_host(data['Dest Host'],message,hosts, rt_table, interfaces, sockets_list, connections,router=True, data = data)
+                                    if data['Source IP'] not in self.arp_tables:
+                                        self.arp_tables[data['Source IP']] = ARPEntry(data['Source Host'], data['Source MAC'], time.time())
+                                    else: # if already exists in arp table updates last seen time
+                                        self.arp_tables[data['Source IP']].update_last_seen()
 
                             prompt_displayed = False
 
@@ -276,7 +293,7 @@ class Lanhooks:
             sys.exit()
 
 
-    def send_to_host(self, dest, message, hosts, rt_table, interfaces, sockets_list, connections):
+    def send_to_host(self, dest, message, hosts, rt_table, interfaces, sockets_list, connections, router = False,data= None):
 
         if self.check_same_station(interfaces, dest):
             print(f'\nMessage received from interface on same station: {message}')
@@ -286,7 +303,13 @@ class Lanhooks:
             next_hop_interface = R.get_next_hop_interface(dest_ip, rt_table)
             # print(next_hop_interface)
             source_ip, source_mac, bridge_name = ifaceparser.bridge_forwarding_info(interfaces, next_hop_interface)
-            
+            if router:
+                source_host = data.get('Source Host', None)
+                source_mac = data.get('Source MAC', None)
+                source_ip = data.get('Source IP', None)
+                packet_type = data.get('Type', None) 
+            else:
+                packet_type = None
             # print(connections)
             # print(bridge_name)
             data_to_send = {
@@ -296,27 +319,38 @@ class Lanhooks:
                 'Dest Host': dest,
                 'Dest IP': dest_ip,
                 'Dest MAC': dest_mac,
+                'Type': packet_type,
             }
-            
+            print(f'-----------{data}-------------')
             idx_socket = self.get_socket_index(connections, bridge_name)
 
             # print(idx_socket)
 
             if idx_socket is not None:
                 print(f'dest ip {dest_ip}')
+                    
                 if dest_ip in self.arp_tables:
                     dest_mac = self.arp_tables[dest_ip].mac_address
                     data_to_send['Dest MAC'] = dest_mac
-                    self.send_message(data_to_send, message, sockets_list[idx_socket])
+                    self.send_message(data_to_send, message, sockets_list[idx_socket],router=router)
                 else:
-                    self.arp_request(data_to_send,message, sockets_list[idx_socket])
+                    if router is not True:
+                        self.arp_request(data_to_send,message, sockets_list[idx_socket])
+                    # update arp table for router
+                    
+                    else:
+                        
+                        self.send_message(data_to_send, message, sockets_list[idx_socket], router=True)
+                        
+                        
             else:
                 print('Trying to send on connection that does not exist')
 
 
 
-    def send_message(self, data_to_send, msg, socket):
-        data_to_send['Type'] = 'IP Packet'
+    def send_message(self, data_to_send,msg=None, socket=None, router = False):
+        if not router :
+            data_to_send['Type'] = 'IP Packet'
         data_to_send['Message'] = msg
 
         json_data = json.dumps(data_to_send)
