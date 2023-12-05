@@ -25,6 +25,7 @@ class Lanhooks:
    
     def connect_to_bridge(self, ip_address, port, interface):
         try:
+        
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             print('------Connecting to server----')
             sys.stdout.flush()  # Flush the buffer to ensure immediate display
@@ -53,6 +54,7 @@ class Lanhooks:
                             self.arp_tables[interface['IP Address']] = ARPEntry(interface['Lan Name'], interface['Mac Address'], time.time(), True)
 
                         return response, s
+                    
 
                 time.sleep(2)
                 attempts += 1
@@ -75,10 +77,10 @@ class Lanhooks:
             bridges = B.parse_bridge_file()
 
             for bridge in bridges:
-
                 port = None
                 if bridge.name == interface_dict['Lan Name']:
                     port = bridge.port
+                    
                     mac_address = interface_dict['Mac Address']
                     # print(port)
                 else:
@@ -241,7 +243,9 @@ class Lanhooks:
                                     
                                     # Since we have arp reply should have packet in queue to be sent
                                     packet_to_send = self.check_valid_in_queue()
+
                                     if packet_to_send:
+                                        packet_to_send['Dest MAC'] = data['Source MAC']
                                         # self.send_to_host(packet_to_send['Dest IP'],packet_to_send['Message'],hosts, rt_table, interfaces, sockets_list, connections)
                                         self.send_message(packet_to_send, packet_to_send['Message'], sock)
                                         self.remove_from_queue(packet_to_send['Dest IP']) # Once queue message is sent remove from queue
@@ -299,8 +303,10 @@ class Lanhooks:
             # print(idx_socket)
 
             if idx_socket is not None:
+                print(f'dest ip {dest_ip}')
                 if dest_ip in self.arp_tables:
-                    dest_mac = self.arp_tables[dest_ip]
+                    dest_mac = self.arp_tables[dest_ip].mac_address
+                    data_to_send['Dest MAC'] = dest_mac
                     self.send_message(data_to_send, message, sockets_list[idx_socket])
                 else:
                     self.arp_request(data_to_send,message, sockets_list[idx_socket])
@@ -317,6 +323,7 @@ class Lanhooks:
 
 
         try:
+            print(f' Data to Send----{data_to_send}')
             socket.send(json_data.encode('utf-8'))
             print("Message sent.")
 

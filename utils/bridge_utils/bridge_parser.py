@@ -21,6 +21,12 @@ class Bridgeparser:
                     bridges.append(Bridge(name,ip_address,port))
         return bridges
 
+    def showbridge(self):
+          with open(self.BRIDGE_FILE_PATH, 'r') as file:
+            for line in file:
+                # Split each line into tokens
+                tokens = line.strip().split(',')
+                print(tokens)
 
     def remove_line_from_file(self,lan_name):
 
@@ -44,6 +50,7 @@ class Bridgeparser:
         dest_mac = data[6:12]
         frame = data[12:]
         return source_mac, dest_mac, frame
+ 
     
     
     def file_write(self,ip_addrr,PORT, station_name): 

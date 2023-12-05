@@ -78,6 +78,8 @@ def start_server():
                         break
                     elif user_input == 'check':
                         bridge.cheeek()
+                    elif user_input == 'bridges':
+                        B.showbridge()
                     else:
                         bridge.promptdisplay()
 
@@ -122,7 +124,7 @@ def start_server():
                             else:
                                 # print(f"Received data from {bridge.port_mapping[sock]}: {json_data}")
                                 # print(data_received)
-                                bridge.handle_station_data(client_socket, data_received)
+                                bridge.handle_station_data(sock, data_received)
 
                     except ConnectionResetError:
                         print(f"Station intentionally disconnected: {bridge.port_mapping[sock]}")

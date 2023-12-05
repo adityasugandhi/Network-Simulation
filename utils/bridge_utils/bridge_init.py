@@ -25,15 +25,25 @@ class Bridge:
     def __str__(self) -> str:
         return f"{self.name},{self.ip_address},{self.port}"
 
+    
     def update_mapping(self, socket_address, in_port):
-        self.port_mapping[socket_address] = {
-            'in_port': in_port,
-            'last_seen': time.time(),
-            'mac_address': None
-        }
+        if socket_address not in self.port_mapping:
+            self.port_mapping[socket_address] = {
+                'in_port': in_port,
+                'last_seen': time.time(),
+                'mac_address': None
+            }
 
     def update_macaddress(self,client_socket,macaddress):
         self.port_mapping[client_socket]['mac_address'] = macaddress
+
+    def checkmacaddress(self,client_socket,macaddress):
+        if macaddress in self.port_mapping.values():
+            return True
+        else:
+            self.port_mapping[client_socket]['mac_address'] = macaddress
+            print(f'new macaddress added to the self-learning table {macaddress},{self.port_mapping}')
+            return False
 
     def getportmap(self):
         return self.port_mapping
@@ -42,8 +52,9 @@ class Bridge:
         for source_address, info in self.port_mapping.items():
             # print(info)
             # print(source_address)
-            print(f' checking is targetmac is in port_mapping {info["mac_address"]}, {target_mac},{self.port_mapping}')
+            print(f' checking is targetmac is in port_mapping {info["mac_address"]}')
             if info['mac_address'] == target_mac:
+                print('True')
                 return source_address
         return None
 
@@ -63,10 +74,10 @@ class Bridge:
         
         for client_socket, info in self.port_mapping.items():
             # if str(client_socket) != str(received_from_socket):
-            # if client_socket is not received_from_socket:
-                # print(info)
-                # print('in')
-                # print(f"{client_socket}, {received_from_socket}")
+            if client_socket is not received_from_socket:
+                print(info)
+                print('in')
+                print(f"{client_socket}, {received_from_socket}")
                 # Skip sending data to the socket from which it was received
             try:
                 client_socket.settimeout(1)
@@ -97,7 +108,7 @@ class Bridge:
                 dest_host = received_data.get('Dest Host', None)
                 dest_ip = received_data.get('Dest IP', None)
                 dest_mac = received_data.get('Dest MAC', None)
-
+                type = received_data.get('Type', None)
                 message = received_data.get('Message', None)
                 flag = received_data.get('Acknowledgement', None)
                 # print(source_mac,dest_mac)
@@ -105,20 +116,41 @@ class Bridge:
                 # if dest_mac is None:
                 #     self.send_to_all(data, received_from_socket=client_socket) 
                 
+                # if type == 'ARP Reply Packet':
+                #     if dest_mac is None:
+                #         self.send_to_all(data, received_from_socket=client_socket)
+                #     else:
+                #         if self.checkmacaddress(client_socket,dest_mac):
+                #             print(f'station found sending data to the client{dest_mac}{self.getsockaddr(dest_mac)}')
+                #             forwading_socket = self.getsockaddr(dest_mac)
+                #             self.fwdclient(forwading_socket,data)
+                #         else:
+                #             self.send_to_all(data, received_from_socket=client_socket)
+                    
+                
+                # print(self.checkmacaddress(client_socket,source_mac))
+                print('----------update mapping---------------------------')
                 self.update_mapping(client_socket,in_port)
                 # updates the macddress in learning table
-                self.update_macaddress(client_socket,dest_mac)
-
-                print(dest_mac)
+                
+                if source_mac == None:
+                    self.update_macaddress(client_socket,source_mac)
+                    # print(self.port_mapping)
+                else:
+                    print('source_mac is none')
+                print('-------------------------------------')
+                print(f'source mac - {source_mac}  destination-mac {dest_mac}, self.port_mapping')
+                print('-------------------------------------')
                 
                 # if the dest_mac is in self-learning table then we fwd to the client
-                # if self.getsockaddr(dest_mac):
-                #     print(f'station found sending data to the client{dest_mac}{self.getsockaddr(dest_mac)}')
-                #     self.fwdclient(client_socket,data)
-                # else: 
-                #     print('station not found sending data to all the connections')
-                #     self.send_to_all(data,received_from_socket=client_socket)
-                self.send_to_all(data,received_from_socket=client_socket)
+                if self.getsockaddr(dest_mac):
+                    print(f'station found sending data to the client{dest_mac}')
+                    forward_sock = self.getsockaddr(dest_mac)
+                    self.fwdclient(forward_sock,data)
+                else: 
+                    print('station not found sending data to all the connections')
+                    self.send_to_all(data,received_from_socket=client_socket)
+                # self.send_to_all(data,received_from_socket=client_socket)
 
                 if not data:
                     # Connection closed by the client
