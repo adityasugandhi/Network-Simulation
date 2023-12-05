@@ -1,14 +1,14 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
-from utils.station_utils.station_parser import  Stationparser,Interfaces
+# from utils.station_utils.station_parser import  Stationparser,Interfaces
 from utils.station_utils.lan_hooks import Lanhooks
-import threading
+
 import argparse
 lhooks = Lanhooks()
 
 
 
 
-def station(router: bool, interface_file: str, host_file: str, rt_file: str):
+def station(router, interface_file, host_file, rt_file):
     '''
     Parameters for station are the file names with the data for interfacee, routingtable, and hostname
     Params are received through command line arguments

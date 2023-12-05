@@ -55,4 +55,5 @@ class Bridgeparser:
     
     def file_write(self,ip_addrr,PORT, station_name): 
         with open(self.BRIDGE_FILE_PATH, "a") as f:
-            f.write(f"{station_name},{ip_addrr},{PORT}\n")
+            f.write("{},{},{}\n".format(station_name, ip_addrr, PORT))
+

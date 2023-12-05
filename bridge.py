@@ -138,7 +138,7 @@ def start_server():
                                 bridge.handle_station_data(sock, data_received)
 
                     except ConnectionResetError:
-                        print("Station intentionally disconnected: {}".format(bridge.port_mapping[sock])
+                        print("Station intentionally disconnected: {}".format(bridge.port_mapping[sock]))
                         sock.close()
                         bridge.active_ports.remove(sock)
                         del bridge.port_mapping[sock]

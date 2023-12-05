@@ -143,7 +143,7 @@ class Bridge:
                 
                 # if the dest_mac is in self-learning table then we fwd to the client
                 if self.getsockaddr(dest_mac):
-                    print('station found sending data to the client{}'.format(dest_mac)
+                    print('station found sending data to the client{}'.format(dest_mac))
                     forward_sock = self.getsockaddr(dest_mac)
                     self.fwdclient(forward_sock,data)
                 else: 

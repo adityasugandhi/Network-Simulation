@@ -1,7 +1,7 @@
 # Authors as22cq (Aditya Sugandhi) & apf19e (Andrew Franklin)
 from utils.station_utils.station_parser import Stationparser
 import time
-from typing import Dict
+
 
 class ARPEntry:
     def __init__(self, lan_name, mac_address, entry_time, default=False):
@@ -17,7 +17,7 @@ class ARPEntry:
 
 
 
-def show_arp_table(arp_table: Dict[ARPEntry],defaultips):
+def show_arp_table(arp_table,defaultips):
             ips = []
             mac_addresses = []
             last_seen_times = []

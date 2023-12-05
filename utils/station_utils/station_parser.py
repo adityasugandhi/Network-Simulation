@@ -38,18 +38,18 @@ class Stationparser:
         self.host_file = host_file
     
     
-class Interfaces(Stationparser):
+class Interfaces:
     def __init__(self,name, ip_address, subnet_mask, mac_address, lan_name):
-        super().__init__()
+        #super().__init__()
         self.name = name
         self.ip_address = ip_address
         self.subnet_mask = subnet_mask
         self.mac_address = mac_address
         self.lan_name = lan_name
 
-class Interfaceparser(Stationparser):
+class Interfaceparser:
     def __init__(self):
-         super().__init__()
+         #super().__init__()
          self.last_interface_instance = None
     def parse_interface_file(self, interface_file):
         interfaces = []
@@ -134,18 +134,19 @@ class Interfaceparser(Stationparser):
         return None
 
     
-class Routingtable(Stationparser):
+class Routingtable:
     def __init__(self,dest_network,next_hop_ip,network_mask,network_interface):
-        super().__init__()
+        #super().__init__()
         self.dest_network = dest_network
         self.next_hop_ip = next_hop_ip
         self.network_mask = network_mask
         self.network_interface = network_interface
 
 
-class Routingparser(Stationparser):
+class Routingparser:
     def __init__(self):
-         super().__init__()
+        pass
+         #super().__init__()
 
     def parse_routing_table_file(self, rt_file):
         routing_table = []
@@ -203,18 +204,18 @@ class Routingparser(Stationparser):
 
 
 
-class Host(Stationparser):
+class Host():
     def __init__(self,name, ip_address):
-        super().__init__()
+       # super().__init__()
         self.name = name
         self.ip_address = ip_address
 
 
 
-class HostParser(Stationparser):
+class HostParser():
     def __init__(self):
-        super().__init__()
-
+        #super().__init__()
+        pass
         
 
     def parse_hostname_file(self, host_file):
