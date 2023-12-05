@@ -7,7 +7,7 @@ host_file = os.path.abspath('./project/hosts')
 
 
 class ActiveBridges:
-    def __init__(self, manager) -> None:
+    def __init__(self, manager):
         self.active_bridges = manager.list()
 
     def add_bridge(self,name,ip_address, port):

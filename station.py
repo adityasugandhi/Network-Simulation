@@ -8,7 +8,7 @@ lhooks = Lanhooks()
 
 
 
-def station(router: bool, interface_file: str, host_file: str, rt_file: str)-> None:
+def station(router: bool, interface_file: str, host_file: str, rt_file: str):
     '''
     Parameters for station are the file names with the data for interfacee, routingtable, and hostname
     Params are received through command line arguments

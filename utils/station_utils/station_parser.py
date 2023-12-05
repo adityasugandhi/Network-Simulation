@@ -32,14 +32,14 @@ def ip_to_int(ip):
     return (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3]
 
 class Stationparser:
-    def __init__(self) -> None:
+    def __init__(self):
         self.interface_file = interface_file
         self.routingtable_file = routingtable_file
         self.host_file = host_file
     
     
 class Interfaces(Stationparser):
-    def __init__(self,name, ip_address, subnet_mask, mac_address, lan_name) -> None:
+    def __init__(self,name, ip_address, subnet_mask, mac_address, lan_name):
         super().__init__()
         self.name = name
         self.ip_address = ip_address
@@ -135,7 +135,7 @@ class Interfaceparser(Stationparser):
 
     
 class Routingtable(Stationparser):
-    def __init__(self,dest_network,next_hop_ip,network_mask,network_interface) -> None:
+    def __init__(self,dest_network,next_hop_ip,network_mask,network_interface):
         super().__init__()
         self.dest_network = dest_network
         self.next_hop_ip = next_hop_ip
@@ -187,7 +187,7 @@ class Routingparser(Stationparser):
     
     def is_ip_in_range(self,start_ip, netmask,ip):
         try:
-            ip_network = ipaddress.IPv4Network(f"{start_ip}/{netmask}", strict=False)
+            ip_network = ipaddress.IPv4Network("{}/{}".format(start_ip, netmask), strict=False)
             return ipaddress.IPv4Address(ip) in ip_network
         except ValueError:
             return False 
@@ -204,7 +204,7 @@ class Routingparser(Stationparser):
 
 
 class Host(Stationparser):
-    def __init__(self,name, ip_address) -> None:
+    def __init__(self,name, ip_address):
         super().__init__()
         self.name = name
         self.ip_address = ip_address

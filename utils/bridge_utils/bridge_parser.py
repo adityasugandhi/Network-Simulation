@@ -1,7 +1,7 @@
 from utils.bridge_utils.bridge_init import Bridge
 
 class Bridgeparser:
-    def __init__(self) -> None:
+    def __init__(self):
         self.BRIDGE_FILE_PATH = 'utils/station_utils/bridge.txt'
 
 

@@ -22,8 +22,8 @@ class Bridge:
         self.lock = threading.Lock()
         self.check_connection_status_running = False
 
-    def __str__(self) -> str:
-        return f"{self.name},{self.ip_address},{self.port}"
+    # def __str__(self):
+    #     return f"{self.name},{self.ip_address},{self.port}"
 
     
     def update_mapping(self, socket_address, in_port):

@@ -17,12 +17,12 @@ H = HostParser()
 R = Routingparser()
 
 class Lanhooks:
-    def __init__(self) -> None:
+    def __init__(self):
         self.bridges = []
         self.arp_tables = {}
         self.pending_queue = []
     
-    def getdefault_ips(self)-> list:
+    def getdefault_ips(self):
         default_ips = []
         
         for ip in self.arp_tables:
