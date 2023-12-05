@@ -217,7 +217,7 @@ class Lanhooks:
                                     problematic_data = json_data[start_position:end_position]
                                     print("Problematic data: {}".format(problematic_data))
                                 
-                                    dest_ip = data.get('Dest IP', None)
+                                dest_ip = data.get('Dest IP', None)
 
                                 if not router or dest_ip in self.getdefault_ips():
                                     
