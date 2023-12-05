@@ -22,7 +22,14 @@ class Lanhooks:
         self.arp_tables = {}
         self.pending_queue = []
     
-   
+    def getdefault_ips(self)-> list:
+        default_ips = []
+        
+        for ip in self.arp_tables:
+            if self.arp_tables[ip].default == True:
+                default_ips.append(ip)
+        return default_ips
+
     def connect_to_bridge(self, ip_address, port, interface):
         try:
         
@@ -202,12 +209,17 @@ class Lanhooks:
                             sockets_list = [s for s in sockets_list if s != sock]
                             sock.close()
                         else:
-                            if not router:
+                            dest_ip = data.get('Dest IP', None)
+
+                            if not router or dest_ip in self.getdefault_ips():
+                                
                                 # Process the received data
                                 # print(data)
+
                                 if data['Type'] == 'ARP Request Packet':
         # If station has IP and MAC address mapping in own ARP table, send this info back to the station requesting MAC
                                     dest_ip = data['Dest IP']
+                                    
                                     if dest_ip in self.arp_tables:
                                         # Access the ARP entry for the destination IP and retrieve the MAC address
                                         data['Dest MAC'] = self.arp_tables[dest_ip].mac_address

@@ -13,6 +13,8 @@ class ARPEntry:
     def update_last_seen(self):
      self.last_seen = time.time()
 
+    
+
 
 
 def show_arp_table(arp_table: dict[ARPEntry])-> None:
@@ -34,6 +36,7 @@ def show_arp_table(arp_table: dict[ARPEntry])-> None:
                 output += "{:<15} {:<15} {:<15}\n".format(ips[i], mac_addresses[i], last_seen_times[i])
 
             return output
+
 
 
     
