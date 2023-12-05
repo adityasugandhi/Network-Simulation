@@ -33,7 +33,7 @@ def send_to_all(bridge_socket, bridge, client_address, user_input):
     for client_port in bridge.active_ports:
         if client_port != client_address:
             bridge_socket.sendto(user_input.encode(), (ip, client_port))
-            print(f"Sending data to station on port {client_port}: {user_input}")
+            print("Sending data to station on port {}: {}".format(client_port,user_input))
 
 
 def handle_user_input(bridge):
@@ -56,8 +56,8 @@ def start_server():
     ip_addrr = bridge.bridge_socket.getsockname()[0]
     bridge.bridge_socket.setblocking(0)
 
-    print(f" Bridge {station_name} Started Running on the:{PORT}, {ip_addrr}, Max Ports availiable {MAX_CONNECTIONS}")
-   
+    print(" Bridge {} Started Running on the:{}, {}, Max Ports available {}".format(station_name, PORT, ip_addrr, MAX_CONNECTIONS))
+
 
     B.file_write(ip_addrr, PORT, str(station_name))
     bridge.promptdisplay()
@@ -91,13 +91,13 @@ def start_server():
                     if len(bridge.port_mapping) < MAX_CONNECTIONS:
                         client_socket.send('accept'.encode())
                         bridge.update_mapping(client_socket, int(client_address[1]))
-                        print(f"Accepted connection from {client_address}")
+                        print("Accepted connection from {}".format(client_address))
                         bridge.active_ports.append(client_socket)
                         bridge.promptdisplay()
                     else:
                         client_socket.send('reject'.encode())
                         client_socket.send('Port are full'.encode())
-                        print(f"Rejected connection from {client_address} as ports are full")
+                        print("Rejected connection from {} as ports are full".format(client_address))
 
                     # Start the check connection status on a different thread
                     if not bridge.check_connection_status:
@@ -105,10 +105,10 @@ def start_server():
                 else:
                     # Existing client, handle data
                     try:
-                        print(f'in try ')
+                        
                         data = sock.recv(1024)
                         if not data:
-                            print(f"Station disconnected: {bridge.port_mapping[sock]}")
+                            print("Station disconnected: {}".format(bridge.port_mapping[sock]))
                             sock.close()
                             bridge.active_ports.remove(sock)
                             del bridge.port_mapping[sock]
@@ -124,7 +124,7 @@ def start_server():
                                 start_position = max(0, error_position - 10)  # Adjust the range as needed
                                 end_position = min(len(json_data), error_position + 10)  # Adjust the range as needed
                                 problematic_data = json_data[start_position:end_position]
-                                print(f"Problematic data: {problematic_data}")
+                                print("Problematic data: {}".format(problematic_data))
                             
                             # checks for metadata string, always from the station.
                             # print(data_received)
@@ -138,7 +138,7 @@ def start_server():
                                 bridge.handle_station_data(sock, data_received)
 
                     except ConnectionResetError:
-                        print(f"Station intentionally disconnected: {bridge.port_mapping[sock]}")
+                        print("Station intentionally disconnected: {}".format(bridge.port_mapping[sock])
                         sock.close()
                         bridge.active_ports.remove(sock)
                         del bridge.port_mapping[sock]

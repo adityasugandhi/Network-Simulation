@@ -42,7 +42,7 @@ class Bridge:
             return True
         else:
             self.port_mapping[client_socket]['mac_address'] = macaddress
-            print(f'new macaddress added to the self-learning table {macaddress},{self.port_mapping}')
+            print('new macaddress added to the self-learning table {},{}'.format(macaddress,self.port_mapping))
             return False
 
     def getportmap(self):
@@ -52,7 +52,6 @@ class Bridge:
         for source_address, info in self.port_mapping.items():
             # print(info)
             # print(source_address)
-            print(f' checking is targetmac is in port_mapping {info["mac_address"]}')
             if info['mac_address'] == target_mac:
                 print('True')
                 return source_address
@@ -63,7 +62,7 @@ class Bridge:
         data = data.encode('utf-8')
         print(socket_address)
         socket_address.send(data)
-        print(f'data succesfully sent to {self.port_mapping[socket_address]}')
+        print('data succesfully sent to {}'.format(self.port_mapping[socket_address]))
 
     def shutdown_threads(self):
         self.exit_signal.set()
@@ -75,9 +74,9 @@ class Bridge:
         for client_socket, info in self.port_mapping.items():
             # if str(client_socket) != str(received_from_socket):
             if client_socket != received_from_socket:
-                print(info)
-                print('in')
-                print(f"{client_socket}, {received_from_socket}")
+                # print(info)
+                # print('in')
+                # print({client_socket}, {received_from_socket})
                 # Skip sending data to the socket from which it was received
                 try:
                     # client_socket.settimeout(1)
@@ -85,7 +84,7 @@ class Bridge:
                     # print(f"Sent data to {client_socket}")
                     # Add your acknowledgment and update_mapping logic here if needed
                 except Exception as e:
-                    print(f'Error sending/receiving data to/from {client_socket}: {e}')
+                    print('Error sending/receiving data to/from {}: {}'.format(client_socket=client_socket, e=str(e)))
 
 
     def handle_station_data(self,client_socket,data):
@@ -139,12 +138,12 @@ class Bridge:
                 else:
                     print('source_mac is not none')
                 print('-------------------------------------')
-                print(f'source mac - {source_mac}  destination-mac {dest_mac}, self.port_mapping')
+                print('source mac - {}  destination-mac {}, self.port_mapping'.format(source_mac,dest_mac))
                 print('-------------------------------------')
                 
                 # if the dest_mac is in self-learning table then we fwd to the client
                 if self.getsockaddr(dest_mac):
-                    print(f'station found sending data to the client{dest_mac}')
+                    print('station found sending data to the client{}'.format(dest_mac)
                     forward_sock = self.getsockaddr(dest_mac)
                     self.fwdclient(forward_sock,data)
                 else: 
@@ -154,7 +153,7 @@ class Bridge:
 
                 if not data:
                     # Connection closed by the client
-                    print(f"Connection closed by {client_socket.getpeername()[1]}")
+                    print("Connection closed by {}.".format(client_socket.getpeername()[1]))
     
     def show_port_mapping(self):
         if not self.port_mapping:
@@ -166,7 +165,8 @@ class Bridge:
             mac_address = mapping_info['mac_address']
 
             # Format the output as desired (assuming socket_address is an IP address)
-            table = f"| {in_port:<6} | {mac_address if mac_address is not None else 'N/A':<20} | {time.ctime(last_seen)} |"
+            table = "| %-6s | %-20s | %s |" % (in_port, mac_address if mac_address is not None else 'N/A', time.ctime(last_seen))
+
 
 # Print the table header
             print("+--------+----------------------+--------------------------+")
@@ -196,7 +196,7 @@ class Bridge:
                     for source_address, info in list(self.port_mapping.items()):
                         if time.time() - info['last_seen'] > 60:
                             # Remove the mapping if no data has been received for 60 seconds
-                            print(f"Station {source_address} has timed out")
+                            print("Station {} has timed out".format(source_address))
                             del self.port_mapping[source_address]
                 time.sleep(30)
                 self.check_connection_status_running = False

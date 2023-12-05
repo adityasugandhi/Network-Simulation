@@ -37,7 +37,7 @@ class Router:
             else:
                 return response
         except socket.error as e:
-            print(f"Error connecting to {bridge_address}:{bridge_port}: {e}")
+            # print(f"Error connecting to {bridge_address}:{bridge_port}: {e}")
             return "reject"
 
     def receive_packet(self):
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     server_socket.bind((server_host, server_port))
     server_socket.listen()
 
-    print(f"Router listening on {server_host}:{server_port}")
+    # print(f"Router listening on {server_host}:{server_port}")
 
     server_socket.setblocking(False)
     router.selector.register(server_socket, selectors.EVENT_READ, data=None)
